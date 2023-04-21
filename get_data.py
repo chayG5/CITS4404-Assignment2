@@ -19,7 +19,6 @@ def get_OHLCV():
     data["Date"] = pd.to_datetime(data["Date"], unit="ms")
     return data
 
-
 # data = get_OHLCV().to_csv("OHLCV_data")
 
 
@@ -39,5 +38,3 @@ def add_taIndicators():
     ohlcv.dropna(inplace=True)
     return ohlcv
 
-
-# data = add_taIndicators().to_csv("OHLCV_data")
