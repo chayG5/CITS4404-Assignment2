@@ -1,21 +1,24 @@
 from get_data import *
 from deap import gp, base, creator, tools
+import random
+import operator
 
 #data = add_taIndicators().to_csv("OHLCV_data")
 
-# Define the functions that can be used in the tree
-def buy(open_price, close_price):
-    # code for when to buy
-    return 1
 
-def sell(open_price, close_price):
-    # code for when to sell
-    return 1
+def sma(window):
+    sma = ta.trend.sma_indicator(get_OHLCV()['Close'], window=window)
+    return sma
+
+def rsi(window):
+    rsi = ta.momentum.rsi_indicator(get_OHLCV()['Close'], window=window)
+    return rsi
 
 # Define the evaluation function that maps a trading rule tree to a fitness value
 def evaluate(individual):
     func = gp.compile(individual, pset)
-    # Apply the trading rule
+    # Apply the trading rule and find fitness
+
 
 # A class to represent the fitness of an individual
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
@@ -23,16 +26,20 @@ creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
 # Initialize the primitive set
-pset = gp.PrimitiveSet("MAIN", arity=2)
+pset = gp.PrimitiveSet("main", arity=2)
 
 # Define the functions that can be used in the tree
-pset.addPrimitive(buy, arity=2)
-pset.addPrimitive(sell, arity=2)
+pset.addPrimitive(sma, arity=1) 
+pset.addPrimitive(rsi, arity=1)
+# Add comparison operators
+pset.addPrimitive(operator.gt, 2)   # greater than
+pset.addPrimitive(operator.lt, 2)   # less than
+pset.addPrimitive(operator.eq, 2)   # equal to 
+
 
 #  Define the terminals that can be used in the tree
-pset.addTerminal(add_taIndicators()["rsi"])
-pset.addTerminal(add_taIndicators()["bb_high"])
-pset.addTerminal(add_taIndicators()["bb_low"])
+pset.addTerminal(20) #maybe use randeom number? more options then. have to be careful of overfitting
+pset.addEphemeralConstant("rand101", lambda: random.uniform(-1, 1)) # don't understand why this needed??
 
 # Initialize the toolbox
 toolbox = base.Toolbox()
@@ -60,6 +67,9 @@ toolbox.register("select", tools.selTournament, tournsize=3)
 # the functions and terminals are created using the PrimitiveTree class, which is a subclass of the gp.PrimitiveTree class.
 # the toolbox.expr method is used to create a new individual with a maximum depth of 2 (need to figure out the best depth), 
 # by randomly selecting functions and terminals from the primitive set.
+# Terminals represent the input values or constants that the functions use as arguments to produce an output.
+# (we can have the parameters for the indicators as terminals? the genetic algo can figure out the best parameter and the best way
+# to organise the indicators)
 
 # The primitive set is a set of functions and terminals that define the syntax and semantics of the individuals in the genetic programming problem.
 # It defines the building blocks of the individuals that will be evolved through the genetic algorithm.
