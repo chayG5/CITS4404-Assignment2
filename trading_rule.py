@@ -47,7 +47,7 @@ creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 pset = gp.PrimitiveSetTyped("main", [float], bool)
 
 # Define the functions that can be used in the tree
-pset.addPrimitive(ta.trend.SMAIndicator, [pd.Series, int], pd.Series) 
+pset.addPrimitive(ta.trend.sma_indicator, [pd.Series, int], pd.Series) 
 pset.addPrimitive(ta.momentum.RSIIndicator, [pd.Series, int], pd.Series)
 pset.addPrimitive(ta.volatility.bollinger_lband_indicator, [pd.Series, int], pd.Series)
 pset.addPrimitive(ta.volatility.bollinger_hband_indicator, [pd.Series, int], pd.Series)

@@ -26,12 +26,13 @@ def add_taIndicators():
     ohlcv = get_OHLCV()
     # calculate the technical indicators using the ta library
     ohlcv['SMA'] = ta.trend.sma_indicator(ohlcv['Close'], window=20)
-    ohlcv['RSI'] = ta.momentum.RSIIndicator(ohlcv['Close'], window=14).rsi()
-    ohlcv['BB_lower'] = ta.volatility.BollingerBands(ohlcv['Close'], window=20).bollinger_lband()
-    ohlcv['BB_upper'] = ta.volatility.BollingerBands(ohlcv['Close'], window=20).bollinger_hband()
+    ohlcv['RSI'] = ta.momentum.rsi(ohlcv['Close'], window=14)
+    ohlcv['BB_lower'] = ta.volatility.bollinger_lband(ohlcv['Close'], window=20)
+    ohlcv['BB_upper'] = ta.volatility.bollinger_hband(ohlcv['Close'], window=20)
 
     # Drop rows with missing values
     ohlcv.dropna(inplace=True)
     return ohlcv
 
-data = add_taIndicators().to_csv("OHLCV_data")
+data = add_taIndicators().iloc[0]['Close']
+print(data)
