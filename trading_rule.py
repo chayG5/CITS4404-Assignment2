@@ -5,7 +5,6 @@ import operator
 import ta
 import numpy as np
 
-#data = add_taIndicators().to_csv("OHLCV_data")
 
 
 # def sma(window):
@@ -45,26 +44,26 @@ creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
 # Initialize the primitive set
-pset = gp.PrimitiveSet("main", arity=1)
+pset = gp.PrimitiveSetTyped("main", [float], bool)
 
 # Define the functions that can be used in the tree
-pset.addPrimitive(ta.trend.SMAindicator, arity=2) 
-pset.addPrimitive(ta.momentum.RSIIndicator, arity=2)
-pset.addPrimitive(ta.volatility.bollinger_lband_indicator, arity=2)
-pset.addPrimitive(ta.volatility.bollinger_hband_indicator, arity=2)
+pset.addPrimitive(ta.trend.SMAIndicator, [pd.Series, int], pd.Series) 
+pset.addPrimitive(ta.momentum.RSIIndicator, [pd.Series, int], pd.Series)
+pset.addPrimitive(ta.volatility.bollinger_lband_indicator, [pd.Series, int], pd.Series)
+pset.addPrimitive(ta.volatility.bollinger_hband_indicator, [pd.Series, int], pd.Series)
 # Add comparison operators
-pset.addPrimitive(operator.gt, 2)   # greater than
-pset.addPrimitive(operator.lt, 2)   # less than
-pset.addPrimitive(operator.eq, 2)   # equal to 
+pset.addPrimitive(operator.gt, [pd.Series, pd.Series], bool)   # greater than
+pset.addPrimitive(operator.lt, [pd.Series, pd.Series], bool)   # less than
+pset.addPrimitive(operator.eq, [pd.Series, pd.Series], bool)   # equal to 
 # pset.addPrimitive(operator.and_, 2) # and
 # pset.addPrimitive(operator.or_, 2)  # or
-pset.addPrimitive(operator.not_, 1) # not
-pset.addPrimitive(operator.ge, 2)   # greater than
-pset.addPrimitive(operator.le, 2)   # less than
+pset.addPrimitive(operator.not_, [pd.Series, pd.Series], bool) # not
+pset.addPrimitive(operator.ge, [pd.Series, pd.Series], bool)   # greater than
+pset.addPrimitive(operator.le, [pd.Series, pd.Series], bool)   # less than
 
 
 #  Define the terminals that can be used in the tree
-pset.addTerminal(random.randint(5,20)) # for the window size
+pset.addTerminal(random.randint(5,20), int) # for the window size
 # pset.addEphemeralConstant("rand101", lambda: random.uniform(-1, 1)) # don't understand why this needed??
 
 # Initialize the toolbox
