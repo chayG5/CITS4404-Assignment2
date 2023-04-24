@@ -1,23 +1,42 @@
 from get_data import *
-from deap import gp, base, creator, tools
+from deap import gp, base, creator, tools, algorithms
 import random
 import operator
+import ta
+import numpy as np
 
 #data = add_taIndicators().to_csv("OHLCV_data")
 
 
-def sma(window):
-    sma = ta.trend.sma_indicator(get_OHLCV()['Close'], window=window)
-    return sma
+# def sma(window):
+#     sma = ta.trend.sma_indicator(get_OHLCV()['Close'], window=window)
+#     return sma
 
-def rsi(window):
-    rsi = ta.momentum.rsi_indicator(get_OHLCV()['Close'], window=window)
-    return rsi
+# def rsi(window):
+#     rsi = ta.momentum.rsi_indicator(get_OHLCV()['Close'], window=window)
+#     return rsi
 
 # Define the evaluation function that maps a trading rule tree to a fitness value
 def evaluate(individual):
-    func = gp.compile(individual, pset)
-    # Apply the trading rule and find fitness
+    # Convert the individual to a callable function
+    strategy = gp.compile(individual, pset)
+    
+    # Simulate trades on historical data
+    data = get_OHLCV()
+    balance = 1000
+    for i in range(len(data)):
+        inputs = data.iloc[i]['Close']
+        output = strategy(inputs)
+        if output == 1:
+            # Buy BTC with all available AUD balance
+            balance -= data.iloc[i]['Close'] * balance
+        elif output == 0:
+            # Sell all BTC
+            balance += data.iloc[i]['Close']* balance
+    
+    # Calculate the fitness (return on investment)
+    roi = balance / 1000 - 1
+    return roi,
 
 
 # A class to represent the fitness of an individual
@@ -26,25 +45,32 @@ creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
 # Initialize the primitive set
-pset = gp.PrimitiveSet("main", arity=2)
+pset = gp.PrimitiveSet("main", arity=1)
 
 # Define the functions that can be used in the tree
-pset.addPrimitive(sma, arity=1) 
-pset.addPrimitive(rsi, arity=1)
+pset.addPrimitive(ta.trend.SMAindicator, arity=2) 
+pset.addPrimitive(ta.momentum.RSIIndicator, arity=2)
+pset.addPrimitive(ta.volatility.bollinger_lband_indicator, arity=2)
+pset.addPrimitive(ta.volatility.bollinger_hband_indicator, arity=2)
 # Add comparison operators
 pset.addPrimitive(operator.gt, 2)   # greater than
 pset.addPrimitive(operator.lt, 2)   # less than
 pset.addPrimitive(operator.eq, 2)   # equal to 
+# pset.addPrimitive(operator.and_, 2) # and
+# pset.addPrimitive(operator.or_, 2)  # or
+pset.addPrimitive(operator.not_, 1) # not
+pset.addPrimitive(operator.ge, 2)   # greater than
+pset.addPrimitive(operator.le, 2)   # less than
 
 
 #  Define the terminals that can be used in the tree
-pset.addTerminal(20) #maybe use randeom number? more options then. have to be careful of overfitting
-pset.addEphemeralConstant("rand101", lambda: random.uniform(-1, 1)) # don't understand why this needed??
+pset.addTerminal(random.randint(5,20)) # for the window size
+# pset.addEphemeralConstant("rand101", lambda: random.uniform(-1, 1)) # don't understand why this needed??
 
 # Initialize the toolbox
 toolbox = base.Toolbox()
 # a generator function that generates trees of functions and operands using the primitive set pset.
-toolbox.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=2) # min_ and max_ are the minimum and maximum heights of the generated trees.
+toolbox.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=3) # min_ and max_ are the minimum and maximum heights of the generated trees.
 # a function that creates a new individual from a generator function (expr).
 toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.expr)
 # a function that creates a population of individuals from a generator function (individual).
@@ -53,13 +79,24 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 toolbox.register("compile", gp.compile, pset=pset)
 # a function that evaluates the fitness of an individual.
 toolbox.register("evaluate", evaluate)
-# a crossover operator that applies one-point crossover to two individuals.
-toolbox.register("mate", gp.cxOnePoint)
-# a mutation operator that applies uniform mutation to an individual.
-toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 # a selection operator that selects individuals using tournament selection.
 toolbox.register("select", tools.selTournament, tournsize=3)
+# a crossover operator that applies one-point crossover to two individuals.
+toolbox.register("mate", gp.cxOnePoint)
+toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
+# a mutation operator that applies uniform mutation to an individual.
+toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 
+# Run the genetic algorithm
+random.seed(0)
+pop = toolbox.population(n=100)
+hof = tools.HallOfFame(10)
+stats = tools.Statistics(lambda ind: ind.fitness.values)
+stats.register("avg", np.mean)
+stats.register("min", np.min)
+stats.register("max", np.max)
+pop, log = algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=50, stats=stats, halloffame=hof, verbose=True)
+best_strategy = hof[0]
 
 # How DEAP works:
 
