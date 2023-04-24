@@ -24,7 +24,7 @@ def evaluate(individual):
     data = get_OHLCV()
     balance = 1000
     for i in range(len(data)):
-        inputs = data.iloc[i]['Close']
+        inputs = data['Close']
         output = strategy(inputs)
         if output == 1:
             # Buy BTC with all available AUD balance
@@ -44,22 +44,22 @@ creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
 # Initialize the primitive set
-pset = gp.PrimitiveSetTyped("main", [float], bool)
+pset = gp.PrimitiveSet("main", arity=1)
 
 # Define the functions that can be used in the tree
-pset.addPrimitive(ta.trend.sma_indicator, [pd.Series, int], pd.Series) 
-pset.addPrimitive(ta.momentum.RSIIndicator, [pd.Series, int], pd.Series)
-pset.addPrimitive(ta.volatility.bollinger_lband_indicator, [pd.Series, int], pd.Series)
-pset.addPrimitive(ta.volatility.bollinger_hband_indicator, [pd.Series, int], pd.Series)
+pset.addPrimitive(ta.trend.sma_indicator, arity=2) 
+pset.addPrimitive(ta.momentum.RSIIndicator, arity=2)
+pset.addPrimitive(ta.volatility.bollinger_lband_indicator, arity=2)
+pset.addPrimitive(ta.volatility.bollinger_hband_indicator, arity=2)
 # Add comparison operators
-pset.addPrimitive(operator.gt, [pd.Series, pd.Series], bool)   # greater than
-pset.addPrimitive(operator.lt, [pd.Series, pd.Series], bool)   # less than
-pset.addPrimitive(operator.eq, [pd.Series, pd.Series], bool)   # equal to 
+pset.addPrimitive(operator.gt, arity=2)   # greater than
+pset.addPrimitive(operator.lt, arity=2)   # less than
+pset.addPrimitive(operator.eq, arity=2)   # equal to 
 # pset.addPrimitive(operator.and_, 2) # and
 # pset.addPrimitive(operator.or_, 2)  # or
-pset.addPrimitive(operator.not_, [pd.Series, pd.Series], bool) # not
-pset.addPrimitive(operator.ge, [pd.Series, pd.Series], bool)   # greater than
-pset.addPrimitive(operator.le, [pd.Series, pd.Series], bool)   # less than
+pset.addPrimitive(operator.not_, arity=2) # not
+pset.addPrimitive(operator.ge, arity=2)   # greater than
+pset.addPrimitive(operator.le, arity=2)   # less than
 
 
 #  Define the terminals that can be used in the tree
