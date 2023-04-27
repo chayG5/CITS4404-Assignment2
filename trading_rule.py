@@ -16,9 +16,6 @@ def sma(window):
 #     rsi = ta.momentum.rsi_indicator(get_OHLCV()['Close'], window=window)
 #     return rsi
 
-# def num():
-#     return 3
-
 
 def calc(x: pd.Series, y: int) -> float:
     return x.iloc[y,0]
@@ -39,11 +36,11 @@ def evaluate(buy_func, sell_fuc):
     for i in range(len(data)):
         buy_signal = buy(i)
         sell_signal = sell(i)
-        if buy_signal and not sell_signal:
+        if buy_signal and not sell_signal and aud_balance > 0:
             aud_balance = 0.98*aud_balance
             btc_balance = aud_balance / data.loc[i, "Close"]
             aud_balance = 0
-        elif sell_signal and not buy_signal:
+        elif sell_signal and not buy_signal and btc_balance > 0:
             aud_balance = btc_balance * data.loc[i, "Close"]
             btc_balance = 0
             aud_balance = 0.98*aud_balance
@@ -83,12 +80,14 @@ pset.addPrimitive(operator.not_, [bool], bool)
 pset.addPrimitive(operator.gt, [float, float], bool)
 # pset.addPrimitive(calc, [pd.Series, int], float)
 
+pset.renameArguments(ARG0="index")
+
 
 #  Define the terminals that can be used in the tree
-pset.addTerminal(random.randint(1, 30), int) 
+pset.addTerminal(random.randint(1, 30), int, "window") 
 pset.addTerminal(random.uniform(0, 1), float) 
-pset.addTerminal(0, bool)
-pset.addTerminal(1, bool)
+pset.addTerminal(False, bool)
+pset.addTerminal(True, bool)
 # pset.addTerminal(get_OHLCV()['Close'], pd.Series)
 
 
@@ -123,14 +122,13 @@ CXPB, MUTPB, NGEN = 0.5, 0.2, 2
 pop_buy = toolbox.population(n=pop_size)
 pop_sell = toolbox.population(n=pop_size)
 # evaluate fitness of initial populations (uses the evaluate function)
-fitnesses_buy = [toolbox.evaluate(ind, None) for ind in pop_buy]
-fitnesses_sell = [toolbox.evaluate(None, ind) for ind in pop_sell]
+fitnesses = [toolbox.evaluate(ind_buy, ind_sell) for ind_buy, ind_sell in zip(pop_buy,pop_sell)]
 # assign fitness values to the individuals
-for ind_buy, fit_buy, ind_sell, fit_sell in zip(
-    pop_buy, fitnesses_buy, pop_sell, fitnesses_sell
+for ind_buy, fit, ind_sell in zip(
+    pop_buy, fitnesses, pop_sell
 ):
-    ind_buy.fitness.values = (fit_buy,)
-    ind_sell.fitness.values = (fit_sell,)
+    ind_buy.fitness.values = (fit,)
+    ind_sell.fitness.values = (fit,)
 
 # run the genetic algorithm
 for g in range(NGEN):
@@ -169,13 +167,12 @@ for g in range(NGEN):
     # Evaluate the individuals with an invalid fitness
     invalid_ind_buy = [ind for ind in offspring_buy if not ind.fitness.valid]
     invalid_ind_sell = [ind for ind in offspring_sell if not ind.fitness.valid]
-    fitnesses_buy = [toolbox.evaluate(ind, None) for ind in invalid_ind_buy]
-    fitnesses_sell = [toolbox.evaluate(None, ind) for ind in invalid_ind_sell]
+    fitnesses = [toolbox.evaluate(ind_buy, ind_sell) for ind_buy, ind_sell in zip(invalid_ind_buy,invalid_ind_sell)]
     
-    for ind, fit in zip(invalid_ind_buy, fitnesses_buy):
+    for ind, fit in zip(invalid_ind_buy, fitnesses):
         ind.fitness.values = (fit,)
 
-    for ind, fit in zip(invalid_ind_sell, fitnesses_sell):
+    for ind, fit in zip(invalid_ind_sell, fitnesses):
         ind.fitness.values = (fit,)
 
     # The population is entirely replaced by the offspring
