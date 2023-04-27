@@ -117,7 +117,8 @@ toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 # a mutation operator that applies uniform mutation to an individual.
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 
-pop_size = 5
+pop_size = 2
+CXPB, MUTPB, NGEN = 0.5, 0.2, 2
 # initialize populations for buy and sell functions separately
 pop_buy = toolbox.population(n=pop_size)
 pop_sell = toolbox.population(n=pop_size)
@@ -128,53 +129,69 @@ fitnesses_sell = [toolbox.evaluate(None, ind) for ind in pop_sell]
 for ind_buy, fit_buy, ind_sell, fit_sell in zip(
     pop_buy, fitnesses_buy, pop_sell, fitnesses_sell
 ):
-    ind_buy.fitness.values = fit_buy
-    ind_sell.fitness.values = fit_sell
+    ind_buy.fitness.values = (fit_buy,)
+    ind_sell.fitness.values = (fit_sell,)
 
-num_generations = 10
 # run the genetic algorithm
-for g in range(num_generations):
+for g in range(NGEN):
     # select the parents
     parents_buy = toolbox.select(pop_buy, len(pop_buy))
     parents_sell = toolbox.select(pop_sell, len(pop_sell))
+
     # create offspring using genetic operators
     offspring_buy = [toolbox.clone(ind) for ind in parents_buy]
     offspring_sell = [toolbox.clone(ind) for ind in parents_sell]
-    # mutaion and crossover for buy and sell functions separately
+
+    # crossover for buy and sell functions separately
     for child1, child2 in zip(offspring_buy[::2], offspring_buy[1::2]):
-        if random.random() < 0.5:
+        if random.random() < CXPB:
             toolbox.mate(child1, child2)
-        toolbox.mutate(child1)
-        toolbox.mutate(child2)
+        del child1.fitness.values
+        del child2.fitness.values
+
     for child1, child2 in zip(offspring_sell[::2], offspring_sell[1::2]):
         if random.random() < 0.5:
             toolbox.mate(child1, child2)
-        toolbox.mutate(child1)
-        toolbox.mutate(child2)
+        del child1.fitness.values
+        del child2.fitness.values
 
-    # evaluate the fitness of the offsprings made above
-    fitnesses_buy = [toolbox.evaluate(ind, None) for ind in offspring_buy]
-    fitnesses_sell = [toolbox.evaluate(None, ind) for ind in offspring_sell]
-    # assign fitness values to the offspring
-    for ind_buy, fit_buy, ind_sell, fit_sell in zip(
-        offspring_buy, fitnesses_buy, offspring_sell, fitnesses_sell
-    ):
-        ind_buy.fitness.values = fit_buy
-        ind_sell.fitness.values = fit_sell
+    # mutate the offspring
+    for mutant in offspring_buy:
+        if random.random() < MUTPB:
+            toolbox.mutate(mutant)
+            del mutant.fitness.values
 
-    # select the new population
-    pop_buy = toolbox.select(offspring_buy + pop_buy, k=pop_size)
-    pop_sell = toolbox.select(offspring_sell + pop_sell, k=pop_size)
+    for mutant in offspring_sell:
+        if random.random() < MUTPB:
+            toolbox.mutate(mutant)
+            del mutant.fitness.values
+
+    # Evaluate the individuals with an invalid fitness
+    invalid_ind_buy = [ind for ind in offspring_buy if not ind.fitness.valid]
+    invalid_ind_sell = [ind for ind in offspring_sell if not ind.fitness.valid]
+    fitnesses_buy = [toolbox.evaluate(ind, None) for ind in invalid_ind_buy]
+    fitnesses_sell = [toolbox.evaluate(None, ind) for ind in invalid_ind_sell]
+    
+    for ind, fit in zip(invalid_ind_buy, fitnesses_buy):
+        ind.fitness.values = (fit,)
+
+    for ind, fit in zip(invalid_ind_sell, fitnesses_sell):
+        ind.fitness.values = (fit,)
+
+    # The population is entirely replaced by the offspring
+    pop_buy[:] = offspring_buy
+    pop_sell[:] = offspring_sell
 
 # get the best buy and sell functions
 best_buy = tools.selBest(pop_buy, k=1)[0]
 best_sell = tools.selBest(pop_sell, k=1)[0]
 
 # compile the best buy and sell functions
-buy_func = compile(best_buy, pset)
-sell_func = compile(best_sell, pset)
-print(buy_func)
-print(sell_func)
+buy_func = gp.compile(best_buy, pset)
+sell_func = gp.compile(best_sell, pset)
+print(best_buy)
+print(best_sell)
+
 
 
 # # Run the genetic algorithm
