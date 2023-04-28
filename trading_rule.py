@@ -6,6 +6,7 @@ import ta
 import numpy as np
 
 count = 1
+ohlcv = get_OHLCV()
 
 def sma(window):
     ohlcv = get_OHLCV()
@@ -16,9 +17,18 @@ def sma(window):
 #     rsi = ta.momentum.rsi_indicator(get_OHLCV()['Close'], window=window)
 #     return rsi
 
+# def close_data():
+#     print("doing")
+#     data = get_OHLCV()
+#     data.dropna(inplace=True)
+#     df = pd.DataFrame(data['Close'])
+#     return df
 
 def calc(x: pd.Series, y: int) -> float:
-    return x.iloc[y,0]
+    if x.shape[1] > 1:
+        return x.loc[y, "Close"]
+    else:
+        return x.iloc[y, 0]
 
 # Define the evaluation function that maps a trading rule tree to a fitness value
 def evaluate(buy_func, sell_fuc):
@@ -34,8 +44,8 @@ def evaluate(buy_func, sell_fuc):
     aud_balance = 100
 
     for i in range(len(data)):
-        buy_signal = buy(i)
-        sell_signal = sell(i)
+        buy_signal = buy(i, data["Close"])
+        sell_signal = sell(i, data["Close"])
         if buy_signal and not sell_signal and aud_balance > 0:
             aud_balance = 0.98*aud_balance
             btc_balance = aud_balance / data.loc[i, "Close"]
@@ -63,7 +73,7 @@ creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
 # Initialize the primitive set
 # pass the current price as an argument to the trading rule
-pset = gp.PrimitiveSetTyped("main", [int], bool)
+pset = gp.PrimitiveSetTyped("main", [int, pd.Series], bool)
 
 # Define the functions that can be used in the tree
 pset.addPrimitive(sma, [int], pd.Series)
@@ -78,7 +88,7 @@ pset.addPrimitive(operator.and_, [bool, bool], bool)
 pset.addPrimitive(operator.or_, [bool, bool], bool)
 pset.addPrimitive(operator.not_, [bool], bool)
 pset.addPrimitive(operator.gt, [float, float], bool)
-# pset.addPrimitive(calc, [pd.Series, int], float)
+pset.addPrimitive(calc, [pd.Series, int], float)
 
 pset.renameArguments(ARG0="index")
 
@@ -88,7 +98,6 @@ pset.addTerminal(random.randint(1, 30), int, "window")
 pset.addTerminal(random.uniform(0, 1), float) 
 pset.addTerminal(False, bool)
 pset.addTerminal(True, bool)
-# pset.addTerminal(get_OHLCV()['Close'], pd.Series)
 
 
 
@@ -116,7 +125,7 @@ toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 # a mutation operator that applies uniform mutation to an individual.
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 
-pop_size = 2
+pop_size = 10
 CXPB, MUTPB, NGEN = 0.5, 0.2, 2
 # initialize populations for buy and sell functions separately
 pop_buy = toolbox.population(n=pop_size)
