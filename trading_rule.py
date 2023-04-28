@@ -32,6 +32,7 @@ def calc(x: pd.Series, y: int) -> float:
 
 # Define the evaluation function that maps a trading rule tree to a fitness value
 def evaluate(buy_func, sell_fuc):
+    # to view the individual number (for debugging)
     global count
     print("individual number: ", count)
     count += 1
