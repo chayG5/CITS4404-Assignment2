@@ -9,60 +9,59 @@ count = 1
 ohlcv = get_OHLCV()
 
 def sma(window):
-    ohlcv = get_OHLCV()
+    if window == 0:
+        window = 1
     sma = ta.trend.sma_indicator(ohlcv['Close'], window=window)
     return sma
 
-# def rsi(window):
-#     rsi = ta.momentum.rsi_indicator(get_OHLCV()['Close'], window=window)
-#     return rsi
-
-# def close_data():
-#     print("doing")
-#     data = get_OHLCV()
-#     data.dropna(inplace=True)
-#     df = pd.DataFrame(data['Close'])
-#     return df
+def rsi(window):
+    if window == 0:
+        window = 1
+    rsi = ta.momentum.rsi(ohlcv['Close'], window=window)
+    return rsi
 
 def calc(x: pd.Series, y: int) -> float:
-    if x.shape[1] > 1:
-        return x.loc[y, "Close"]
+    if y >= len(x):
+        y = len(x) - 1
+    if len(x.shape) == 1:
+        return x.loc[y]
     else:
-        return x.iloc[y, 0]
+        return x.iloc[y, "Close"]
 
 # Define the evaluation function that maps a trading rule tree to a fitness value
 def evaluate(buy_func, sell_fuc):
     # to view the individual number (for debugging)
     global count
-    print("individual number: ", count)
     count += 1
     # Convert the individual to a callable function
-    data = get_OHLCV()
     buy = gp.compile(buy_func, pset)
     sell = gp.compile(sell_fuc, pset)
     
     btc_balance = 0
     aud_balance = 100
 
-    for i in range(len(data)):
-        buy_signal = buy(i, data["Close"])
-        sell_signal = sell(i, data["Close"])
+    for i in range(len(ohlcv)):
+        buy_signal = buy(i, ohlcv["Close"])
+        sell_signal = sell(i, ohlcv["Close"])
+        # print("data index:", i)
+        # print("buy signal: ", buy_signal)
+        # print("sell signal: ", sell_signal)
         if buy_signal and not sell_signal and aud_balance > 0:
             aud_balance = 0.98*aud_balance
-            btc_balance = aud_balance / data.loc[i, "Close"]
+            btc_balance = aud_balance / ohlcv.loc[i, "Close"]
             aud_balance = 0
         elif sell_signal and not buy_signal and btc_balance > 0:
-            aud_balance = btc_balance * data.loc[i, "Close"]
+            aud_balance = btc_balance * ohlcv.loc[i, "Close"]
             btc_balance = 0
             aud_balance = 0.98*aud_balance
 
-    # sell any remaining BTC at the end of the data period
+    # sell any remaining BTC
     if btc_balance > 0:
-        aud_balance = btc_balance * data.loc[i, "Close"]
+        aud_balance = btc_balance * ohlcv.loc[i, "Close"]
         btc_balance = 0
         aud_balance = 0.98*aud_balance
-
-    print("aud balance: ", aud_balance)
+    if aud_balance > 58 and aud_balance != 100:
+        print("individual number: ", count, "    aud balance: ", aud_balance)
     return aud_balance
 
 
@@ -72,23 +71,24 @@ creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 # A class to represent an individual
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
+class Bool(object): pass
 # Initialize the primitive set
 # pass the current price as an argument to the trading rule
-pset = gp.PrimitiveSetTyped("main", [int, pd.Series], bool)
+pset = gp.PrimitiveSetTyped("main", [int, pd.Series], Bool)
 
 # Define the functions that can be used in the tree
 pset.addPrimitive(sma, [int], pd.Series)
-# pset.addPrimitive(ta.momentum.RSIIndicator, [pd.Series, int], pd.Series)
+pset.addPrimitive(rsi, [int], pd.Series)
 # pset.addPrimitive(ta.volatility.bollinger_lband_indicator, [pd.Series, int], pd.Series)
 # pset.addPrimitive(ta.volatility.bollinger_hband_indicator, [pd.Series, int], pd.Series)
 pset.addPrimitive(operator.mul, [float, float], float)
 pset.addPrimitive(operator.mul, [int, float], float)
 pset.addPrimitive(operator.mul, [int, int], int)
 # pset.addPrimitive(num, [], int)
-pset.addPrimitive(operator.and_, [bool, bool], bool)
-pset.addPrimitive(operator.or_, [bool, bool], bool)
-pset.addPrimitive(operator.not_, [bool], bool)
-pset.addPrimitive(operator.gt, [float, float], bool)
+pset.addPrimitive(operator.and_, [Bool, Bool], Bool)
+pset.addPrimitive(operator.or_, [Bool, Bool], Bool)
+pset.addPrimitive(operator.not_, [Bool], Bool)
+pset.addPrimitive(operator.gt, [float, float], Bool)
 pset.addPrimitive(calc, [pd.Series, int], float)
 
 pset.renameArguments(ARG0="index")
@@ -97,8 +97,8 @@ pset.renameArguments(ARG0="index")
 #  Define the terminals that can be used in the tree
 pset.addTerminal(random.randint(1, 30), int, "window") 
 pset.addTerminal(random.uniform(0, 1), float) 
-pset.addTerminal(False, bool)
-pset.addTerminal(True, bool)
+pset.addTerminal(False, Bool)
+pset.addTerminal(True, Bool)
 
 
 
@@ -126,8 +126,8 @@ toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 # a mutation operator that applies uniform mutation to an individual.
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 
-pop_size = 10
-CXPB, MUTPB, NGEN = 0.5, 0.2, 2
+pop_size = 100
+CXPB, MUTPB, NGEN = 0.5, 0.2, 50
 # initialize populations for buy and sell functions separately
 pop_buy = toolbox.population(n=pop_size)
 pop_sell = toolbox.population(n=pop_size)
@@ -143,8 +143,12 @@ for ind_buy, fit, ind_sell in zip(
 # run the genetic algorithm
 for g in range(NGEN):
     # select the parents
-    parents_buy = toolbox.select(pop_buy, len(pop_buy))
-    parents_sell = toolbox.select(pop_sell, len(pop_sell))
+    if (len(pop_buy) > 30):
+        newPop = len(pop_buy) - 5
+    else:
+        newPop = len(pop_buy)
+    parents_buy = toolbox.select(pop_buy, newPop)
+    parents_sell = toolbox.select(pop_sell, newPop)
 
     # create offspring using genetic operators
     offspring_buy = [toolbox.clone(ind) for ind in parents_buy]

@@ -33,3 +33,6 @@ def add_taIndicators():
     # Drop rows with missing values
     ohlcv.dropna(inplace=True)
     return ohlcv
+
+# testing = get_OHLCV()["Close"]
+# print(testing.loc[1])
