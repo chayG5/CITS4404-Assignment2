@@ -1,9 +1,8 @@
 from get_data import *
-from deap import gp, base, creator, tools, algorithms
+from deap import gp, base, creator, tools
 import random
 import operator
 import ta
-import numpy as np
 
 count = 1
 ohlcv = get_OHLCV()
@@ -20,6 +19,12 @@ def rsi(window):
     rsi = ta.momentum.rsi(ohlcv['Close'], window=window)
     return rsi
 
+def macd(window_fast, window_slow, window_sign):
+    if window_fast == 0 or window_slow == 0 or window_sign == 0:
+        window_fast = 1; window_slow = 1; window_sign = 1
+    macd = ta.trend.macd(ohlcv['Close'], window_fast, window_slow, window_sign)
+    return macd
+
 def calc(x: pd.Series, y: int) -> float:
     if y >= len(x):
         y = len(x) - 1
@@ -27,7 +32,8 @@ def calc(x: pd.Series, y: int) -> float:
         return x.loc[y]
     else:
         return x.iloc[y, "Close"]
-
+def num():
+    return 1
 # Define the evaluation function that maps a trading rule tree to a fitness value
 def evaluate(buy_func, sell_fuc):
     # to view the individual number (for debugging)
@@ -41,11 +47,8 @@ def evaluate(buy_func, sell_fuc):
     aud_balance = 100
 
     for i in range(len(ohlcv)):
-        buy_signal = buy(i, ohlcv["Close"])
-        sell_signal = sell(i, ohlcv["Close"])
-        # print("data index:", i)
-        # print("buy signal: ", buy_signal)
-        # print("sell signal: ", sell_signal)
+        buy_signal = buy(i, ohlcv["Close"], ohlcv["Open"], ohlcv["High"], ohlcv["Low"], ohlcv["Volume"])
+        sell_signal = sell(i, ohlcv["Close"], ohlcv["Open"], ohlcv["High"], ohlcv["Low"], ohlcv["Volume"])
         if buy_signal and not sell_signal and aud_balance > 0:
             aud_balance = 0.98*aud_balance
             btc_balance = aud_balance / ohlcv.loc[i, "Close"]
@@ -60,8 +63,8 @@ def evaluate(buy_func, sell_fuc):
         aud_balance = btc_balance * ohlcv.loc[i, "Close"]
         btc_balance = 0
         aud_balance = 0.98*aud_balance
-    if aud_balance > 58 and aud_balance != 100:
-        print("individual number: ", count, "    aud balance: ", aud_balance)
+    # if aud_balance > 58 and aud_balance != 100:
+    print("individual number: ", count, "    aud balance: ", aud_balance)
     return aud_balance
 
 
@@ -71,31 +74,35 @@ creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 # A class to represent an individual
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
-class Bool(object): pass
+class Bool:
+    TRUE = True
+    FALSE = False
 # Initialize the primitive set
 # pass the current price as an argument to the trading rule
-pset = gp.PrimitiveSetTyped("main", [int, pd.Series], Bool)
+pset = gp.PrimitiveSetTyped("main", [int, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series], Bool)
 
 # Define the functions that can be used in the tree
 pset.addPrimitive(sma, [int], pd.Series)
 pset.addPrimitive(rsi, [int], pd.Series)
-# pset.addPrimitive(ta.volatility.bollinger_lband_indicator, [pd.Series, int], pd.Series)
-# pset.addPrimitive(ta.volatility.bollinger_hband_indicator, [pd.Series, int], pd.Series)
+pset.addPrimitive(macd, [int, int, int], pd.Series)
+
+pset.addPrimitive(calc, [pd.Series, int], float)
+pset.addPrimitive(num, [], int)
+
 pset.addPrimitive(operator.mul, [float, float], float)
 pset.addPrimitive(operator.mul, [int, float], float)
-pset.addPrimitive(operator.mul, [int, int], int)
-# pset.addPrimitive(num, [], int)
 pset.addPrimitive(operator.and_, [Bool, Bool], Bool)
 pset.addPrimitive(operator.or_, [Bool, Bool], Bool)
 pset.addPrimitive(operator.not_, [Bool], Bool)
 pset.addPrimitive(operator.gt, [float, float], Bool)
-pset.addPrimitive(calc, [pd.Series, int], float)
 
-pset.renameArguments(ARG0="index")
-
+pset.renameArguments(ARG0="index"); pset.renameArguments(ARG1="Close"); pset.renameArguments(ARG2="Open")
+pset.renameArguments(ARG3="High"); pset.renameArguments(ARG4="Low"); pset.renameArguments(ARG5="Volume")
 
 #  Define the terminals that can be used in the tree
-pset.addTerminal(random.randint(1, 30), int, "window") 
+pset.addTerminal(random.randint(1, 30), int) 
+pset.addTerminal(5, int); pset.addTerminal(10, int); pset.addTerminal(12, int); pset.addTerminal(20, int)
+pset.addTerminal(22, int); pset.addTerminal(25, int); pset.addTerminal(30, int); pset.addTerminal(35, int); pset.addTerminal(70, int)
 pset.addTerminal(random.uniform(0, 1), float) 
 pset.addTerminal(False, Bool)
 pset.addTerminal(True, Bool)
@@ -203,15 +210,3 @@ sell_func = gp.compile(best_sell, pset)
 print(best_buy)
 print(best_sell)
 
-
-
-# # Run the genetic algorithm
-# random.seed(0)
-# pop = toolbox.population(n=25)
-# hof = tools.HallOfFame(10)
-# stats = tools.Statistics(lambda ind: ind.fitness.values)
-# stats.register("avg", np.mean)
-# stats.register("min", np.min)
-# stats.register("max", np.max)
-# pop, log = algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=50, stats=stats, halloffame=hof, verbose=True)
-# best_strategy = hof[0]
