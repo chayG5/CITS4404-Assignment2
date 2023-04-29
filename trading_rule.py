@@ -63,8 +63,8 @@ def evaluate(buy_func, sell_fuc):
         aud_balance = btc_balance * ohlcv.loc[i, "Close"]
         btc_balance = 0
         aud_balance = 0.98*aud_balance
-    # if aud_balance > 58 and aud_balance != 100:
-    print("individual number: ", count, "    aud balance: ", aud_balance)
+    if aud_balance > 60 and aud_balance != 100:
+        print("individual number: ", count, "    aud balance: ", aud_balance)
     return aud_balance
 
 
@@ -100,10 +100,9 @@ pset.renameArguments(ARG0="index"); pset.renameArguments(ARG1="Close"); pset.ren
 pset.renameArguments(ARG3="High"); pset.renameArguments(ARG4="Low"); pset.renameArguments(ARG5="Volume")
 
 #  Define the terminals that can be used in the tree
-pset.addTerminal(random.randint(1, 30), int) 
 pset.addTerminal(5, int); pset.addTerminal(10, int); pset.addTerminal(12, int); pset.addTerminal(20, int)
 pset.addTerminal(22, int); pset.addTerminal(25, int); pset.addTerminal(30, int); pset.addTerminal(35, int); pset.addTerminal(70, int)
-pset.addTerminal(random.uniform(0, 1), float) 
+pset.addTerminal(0.1, float); pset.addTerminal(0.2, float); pset.addTerminal(0.3, float); pset.addTerminal(0.4, float); pset.addTerminal(0.5, float)
 pset.addTerminal(False, Bool)
 pset.addTerminal(True, Bool)
 
@@ -133,8 +132,8 @@ toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 # a mutation operator that applies uniform mutation to an individual.
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 
-pop_size = 100
-CXPB, MUTPB, NGEN = 0.5, 0.2, 50
+pop_size = 10000
+CXPB, MUTPB, NGEN = 0.5, 0.2, 100
 # initialize populations for buy and sell functions separately
 pop_buy = toolbox.population(n=pop_size)
 pop_sell = toolbox.population(n=pop_size)
@@ -149,11 +148,17 @@ for ind_buy, fit, ind_sell in zip(
 
 # run the genetic algorithm
 for g in range(NGEN):
-    # select the parents
+    print("------------------------ Generation %i --------------------------" % g)
+    
+    # decrease population size to remove bad individuals
     if (len(pop_buy) > 30):
-        newPop = len(pop_buy) - 5
+        newPop = len(pop_buy) - 50
     else:
         newPop = len(pop_buy)
+
+    print("Population size: ", newPop)
+
+    # select the parents
     parents_buy = toolbox.select(pop_buy, newPop)
     parents_sell = toolbox.select(pop_sell, newPop)
 
@@ -209,4 +214,7 @@ buy_func = gp.compile(best_buy, pset)
 sell_func = gp.compile(best_sell, pset)
 print(best_buy)
 print(best_sell)
+
+final = evaluate(best_buy, best_sell)
+print("Final fitness: ", final)
 
