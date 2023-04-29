@@ -6,27 +6,39 @@ import ta
 
 count = 1
 ohlcv = get_OHLCV()
+roc_5 = ta.momentum.roc(ohlcv['Close'], window=5)
+roc_10 = ta.momentum.roc(ohlcv['Close'], window=10)
+williams_5 = ta.momentum.williams_r(ohlcv['High'], ohlcv['Low'], ohlcv['Close'], lbp=5)
+williams_10 = ta.momentum.williams_r(ohlcv['High'], ohlcv['Low'], ohlcv['Close'], lbp=10)
+kama_5 = ta.momentum.kama(ohlcv['Close'], window=5, pow1=2, pow2=30)
+kama_10 = ta.momentum.kama(ohlcv['Close'], window=10, pow1=2, pow2=30)
+atr_5 = ta.volatility.average_true_range(ohlcv['High'], ohlcv['Low'], ohlcv['Close'], window=5)
+atr_10 = ta.volatility.average_true_range(ohlcv['High'], ohlcv['Low'], ohlcv['Close'], window=10)
 
 class Bool:
     TRUE = True
     FALSE = False
 
-class Window:
-    five = 5;ten = 10;twelve = 12;twenty = 20;twenty_two = 22;twenty_five = 25
-    thirty = 30;fifty = 50;seventy = 70;hundred = 100
-    hundred_fifty = 150; two_hundred = 200; two_hundred_fifty = 250; three_hundred = 300; 
+# class Window:
+#     five = 5;ten = 10;twelve = 12;twenty = 20;twenty_two = 22;twenty_five = 25
+#     thirty = 30;fifty = 50;seventy = 70;hundred = 100
+#     hundred_fifty = 150; two_hundred = 200; two_hundred_fifty = 250; three_hundred = 300; 
     
-def sma(window):
-    sma = ta.trend.sma_indicator(ohlcv['Close'], window=window)
-    return sma
+# def sma(window):
+#     sma = ta.trend.sma_indicator(ohlcv['Close'], window=window)
+#     return sma
 
-def rsi(window):
-    rsi = ta.momentum.rsi(ohlcv['Close'], window=window)
-    return rsi
+def volume():
+    volume = ohlcv['Volume']
+    return volume
 
-def macd(window_fast, window_slow, window_sign):
-    macd = ta.trend.macd(ohlcv['Close'], window_fast, window_slow, window_sign)
-    return macd
+# def rsi(window):
+#     rsi = ta.momentum.rsi(ohlcv['Close'], window=window)
+#     return rsi
+
+# def macd(window_fast, window_slow, window_sign):
+#     macd = ta.trend.macd(ohlcv['Close'], window_fast, window_slow, window_sign)
+#     return macd
 
 def calc(x: pd.Series, y: int) -> float:
     if y >= len(x):
@@ -54,8 +66,8 @@ def evaluate(buy_func, sell_fuc):
     aud_balance = 100
 
     for i in range(len(ohlcv)):
-        buy_signal = buy(i, ohlcv["Close"], ohlcv["Open"], ohlcv["High"], ohlcv["Low"], ohlcv["Volume"])
-        sell_signal = sell(i, ohlcv["Close"], ohlcv["Open"], ohlcv["High"], ohlcv["Low"], ohlcv["Volume"])
+        buy_signal = buy(i, roc_5, roc_10, williams_5, williams_10, kama_5, kama_10, atr_5, atr_10)
+        sell_signal = sell(i, roc_5, roc_10, williams_5, williams_10, kama_5, kama_10, atr_5, atr_10)
         if buy_signal and not sell_signal and aud_balance > 0:
             aud_balance = 0.98*aud_balance
             btc_balance = aud_balance / ohlcv.loc[i, "Close"]
@@ -85,16 +97,17 @@ creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
 # Initialize the primitive set
 # pass the current price as an argument to the trading rule
-pset = gp.PrimitiveSetTyped("main", [int, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series], Bool)
-
+# pset = gp.PrimitiveSetTyped("main", [int, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series], Bool)
+pset = gp.PrimitiveSetTyped("main", [int, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series], Bool)
 # Define the functions that can be used in the tree
-pset.addPrimitive(sma, [Window], pd.Series)
-pset.addPrimitive(rsi, [Window], pd.Series)
-pset.addPrimitive(macd, [Window, Window, Window], pd.Series)
+# pset.addPrimitive(sma, [Window], pd.Series)
+# pset.addPrimitive(rsi, [Window], pd.Series)
+# pset.addPrimitive(macd, [Window, Window, Window], pd.Series)
 
 pset.addPrimitive(calc, [pd.Series, int], float)
 pset.addPrimitive(num, [], int)
-pset.addPrimitive(window, [], Window)
+pset.addPrimitive(volume, [], pd.Series)
+# pset.addPrimitive(window, [], Window)
 
 pset.addPrimitive(operator.mul, [float, float], float)
 pset.addPrimitive(operator.mul, [int, float], float)
@@ -103,16 +116,25 @@ pset.addPrimitive(operator.or_, [Bool, Bool], Bool)
 pset.addPrimitive(operator.not_, [Bool], Bool)
 pset.addPrimitive(operator.gt, [float, float], Bool)
 
-pset.renameArguments(ARG0="index"); pset.renameArguments(ARG1="Close"); pset.renameArguments(ARG2="Open")
-pset.renameArguments(ARG3="High"); pset.renameArguments(ARG4="Low"); pset.renameArguments(ARG5="Volume")
+pset.renameArguments(ARG0="index")
+pset.renameArguments(ARG1="roc_5"); pset.renameArguments(ARG2="roc_10")
+pset.renameArguments(ARG3="williams_5"); pset.renameArguments(ARG4="williams_10")
+pset.renameArguments(ARG5="kama_5"); pset.renameArguments(ARG6="kama_10")
+pset.renameArguments(ARG7="atr_5"); pset.renameArguments(ARG8="atr_10")
+# pset.renameArguments(ARG1="Close"); pset.renameArguments(ARG2="Open")
+# pset.renameArguments(ARG3="High"); pset.renameArguments(ARG4="Low"); pset.renameArguments(ARG5="Volume")
 
 #  Define the terminals that can be used in the tree
-pset.addTerminal(5, Window); pset.addTerminal(10, Window); pset.addTerminal(12, Window); pset.addTerminal(20, Window)
-pset.addTerminal(22, Window); pset.addTerminal(25, Window); pset.addTerminal(30, Window); pset.addTerminal(50, Window); pset.addTerminal(70, Window)
-pset.addTerminal(100, Window); pset.addTerminal(150, Window); pset.addTerminal(200, Window); pset.addTerminal(250, Window); pset.addTerminal(300, Window)
+# pset.addTerminal(5, Window); pset.addTerminal(10, Window); pset.addTerminal(12, Window); pset.addTerminal(20, Window)
+# pset.addTerminal(22, Window); pset.addTerminal(25, Window); pset.addTerminal(30, Window); pset.addTerminal(50, Window); pset.addTerminal(70, Window)
+# pset.addTerminal(100, Window); pset.addTerminal(150, Window); pset.addTerminal(200, Window); pset.addTerminal(250, Window); pset.addTerminal(300, Window)
 pset.addTerminal(0.1, float); pset.addTerminal(0.2, float); pset.addTerminal(0.3, float); pset.addTerminal(0.4, float); pset.addTerminal(0.5, float)
 pset.addTerminal(False, Bool)
 pset.addTerminal(True, Bool)
+# pset.addTerminal(roc_5, pd.Series); pset.addTerminal(roc_10, pd.Series)
+# pset.addTerminal(williams_5, pd.Series); pset.addTerminal(williams_10, pd.Series)
+# pset.addTerminal(kama_5, pd.Series); pset.addTerminal(kama_10, pd.Series)
+# pset.addTerminal(atr_5, pd.Series); pset.addTerminal(atr_10, pd.Series)
 
 
 
@@ -133,15 +155,15 @@ toolbox.register("compile", gp.compile, pset=pset)
 # a function that evaluates the fitness of an individual.
 toolbox.register("evaluate", evaluate)
 # a selection operator that selects individuals using tournament selection.
-toolbox.register("select", tools.selTournament, tournsize=3)
+toolbox.register("select", tools.selTournament, tournsize=4)
 # a crossover operator that applies one-point crossover to two individuals.
 toolbox.register("mate", gp.cxOnePoint)
 toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 # a mutation operator that applies uniform mutation to an individual.
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 
-pop_size = 10000
-CXPB, MUTPB, NGEN = 0.5, 0.2, 25
+pop_size = 2000
+CXPB, MUTPB, NGEN = 0.8, 0.2, 30
 # initialize populations for buy and sell functions separately
 pop_buy = toolbox.population(n=pop_size)
 pop_sell = toolbox.population(n=pop_size)
