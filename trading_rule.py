@@ -19,26 +19,9 @@ class Bool:
     TRUE = True
     FALSE = False
 
-# class Window:
-#     five = 5;ten = 10;twelve = 12;twenty = 20;twenty_two = 22;twenty_five = 25
-#     thirty = 30;fifty = 50;seventy = 70;hundred = 100
-#     hundred_fifty = 150; two_hundred = 200; two_hundred_fifty = 250; three_hundred = 300; 
-    
-# def sma(window):
-#     sma = ta.trend.sma_indicator(ohlcv['Close'], window=window)
-#     return sma
-
 def volume():
     volume = ohlcv['Volume']
     return volume
-
-# def rsi(window):
-#     rsi = ta.momentum.rsi(ohlcv['Close'], window=window)
-#     return rsi
-
-# def macd(window_fast, window_slow, window_sign):
-#     macd = ta.trend.macd(ohlcv['Close'], window_fast, window_slow, window_sign)
-#     return macd
 
 def calc(x: pd.Series, y: int) -> float:
     if y >= len(x):
@@ -54,13 +37,13 @@ def num():
 def window():
     return 200
 # Define the evaluation function that maps a trading rule tree to a fitness value
-def evaluate(buy_func, sell_fuc):
+def evaluate(buy_func, sell_func):
     # to view the individual number (for debugging)
     global count
     count += 1
     # Convert the individual to a callable function
     buy = gp.compile(buy_func, pset)
-    sell = gp.compile(sell_fuc, pset)
+    sell = gp.compile(sell_func, pset)
     
     btc_balance = 0
     aud_balance = 100
@@ -82,10 +65,25 @@ def evaluate(buy_func, sell_fuc):
         aud_balance = btc_balance * ohlcv.loc[i, "Close"]
         btc_balance = 0
         aud_balance = 0.98*aud_balance
+    
+    
+    # make sure buy and sell functions have at least one indicator
+    buy_found = 0
+    sell_found = 0
+    # print("-------------------------------------------", str(buy_func))
+    for i in ["roc_5", "roc_10", "williams_5", "williams_10", "kama_5", "kama_10", "atr_5", "atr_10"]:
+        if str(buy_func).find(i) >= 0:
+            # print("---------------", str(buy_func).find(i))
+            buy_found = 1
+        if str(sell_func).find(i) >= 0:
+            sell_found = 1
+    if buy_found == 0 or sell_found == 0:
+        aud_balance = 0
+
     if aud_balance > 60 and aud_balance != 100:
         print("individual number: ", count, "    aud balance: ", aud_balance)
     if aud_balance > 100:
-        print("buy function: ", buy_func, "    sell function: ", sell_fuc)
+        print("buy function: ", buy_func, "    sell function: ", sell_func)
     return aud_balance
 
 
@@ -96,18 +94,11 @@ creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
 # Initialize the primitive set
-# pass the current price as an argument to the trading rule
-# pset = gp.PrimitiveSetTyped("main", [int, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series], Bool)
 pset = gp.PrimitiveSetTyped("main", [int, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series], Bool)
 # Define the functions that can be used in the tree
-# pset.addPrimitive(sma, [Window], pd.Series)
-# pset.addPrimitive(rsi, [Window], pd.Series)
-# pset.addPrimitive(macd, [Window, Window, Window], pd.Series)
-
 pset.addPrimitive(calc, [pd.Series, int], float)
 pset.addPrimitive(num, [], int)
 pset.addPrimitive(volume, [], pd.Series)
-# pset.addPrimitive(window, [], Window)
 
 pset.addPrimitive(operator.mul, [float, float], float)
 pset.addPrimitive(operator.mul, [int, float], float)
@@ -121,24 +112,12 @@ pset.renameArguments(ARG1="roc_5"); pset.renameArguments(ARG2="roc_10")
 pset.renameArguments(ARG3="williams_5"); pset.renameArguments(ARG4="williams_10")
 pset.renameArguments(ARG5="kama_5"); pset.renameArguments(ARG6="kama_10")
 pset.renameArguments(ARG7="atr_5"); pset.renameArguments(ARG8="atr_10")
-# pset.renameArguments(ARG1="Close"); pset.renameArguments(ARG2="Open")
-# pset.renameArguments(ARG3="High"); pset.renameArguments(ARG4="Low"); pset.renameArguments(ARG5="Volume")
 
 #  Define the terminals that can be used in the tree
-# pset.addTerminal(5, Window); pset.addTerminal(10, Window); pset.addTerminal(12, Window); pset.addTerminal(20, Window)
-# pset.addTerminal(22, Window); pset.addTerminal(25, Window); pset.addTerminal(30, Window); pset.addTerminal(50, Window); pset.addTerminal(70, Window)
-# pset.addTerminal(100, Window); pset.addTerminal(150, Window); pset.addTerminal(200, Window); pset.addTerminal(250, Window); pset.addTerminal(300, Window)
 pset.addTerminal(0.1, float); pset.addTerminal(0.2, float); pset.addTerminal(0.3, float); pset.addTerminal(0.4, float); pset.addTerminal(0.5, float)
 pset.addTerminal(False, Bool)
 pset.addTerminal(True, Bool)
-# pset.addTerminal(roc_5, pd.Series); pset.addTerminal(roc_10, pd.Series)
-# pset.addTerminal(williams_5, pd.Series); pset.addTerminal(williams_10, pd.Series)
-# pset.addTerminal(kama_5, pd.Series); pset.addTerminal(kama_10, pd.Series)
-# pset.addTerminal(atr_5, pd.Series); pset.addTerminal(atr_10, pd.Series)
-
-
-
-pset.addEphemeralConstant("rand101", lambda: random.uniform(-1, 1), float) # don't understand why this needed??
+pset.addEphemeralConstant("rand101", lambda: random.uniform(-1, 1), float) 
 
 # Initialize the toolbox
 toolbox = base.Toolbox()
