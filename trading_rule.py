@@ -7,21 +7,24 @@ import ta
 count = 1
 ohlcv = get_OHLCV()
 
+class Bool:
+    TRUE = True
+    FALSE = False
+
+class Window:
+    five = 5;ten = 10;twelve = 12;twenty = 20;twenty_two = 22;twenty_five = 25
+    thirty = 30;fifty = 50;seventy = 70;hundred = 100
+    hundred_fifty = 150; two_hundred = 200; two_hundred_fifty = 250; three_hundred = 300; 
+    
 def sma(window):
-    if window == 0:
-        window = 1
     sma = ta.trend.sma_indicator(ohlcv['Close'], window=window)
     return sma
 
 def rsi(window):
-    if window == 0:
-        window = 1
     rsi = ta.momentum.rsi(ohlcv['Close'], window=window)
     return rsi
 
 def macd(window_fast, window_slow, window_sign):
-    if window_fast == 0 or window_slow == 0 or window_sign == 0:
-        window_fast = 1; window_slow = 1; window_sign = 1
     macd = ta.trend.macd(ohlcv['Close'], window_fast, window_slow, window_sign)
     return macd
 
@@ -32,8 +35,12 @@ def calc(x: pd.Series, y: int) -> float:
         return x.loc[y]
     else:
         return x.iloc[y, "Close"]
+    
 def num():
     return 1
+
+def window():
+    return 200
 # Define the evaluation function that maps a trading rule tree to a fitness value
 def evaluate(buy_func, sell_fuc):
     # to view the individual number (for debugging)
@@ -65,6 +72,8 @@ def evaluate(buy_func, sell_fuc):
         aud_balance = 0.98*aud_balance
     if aud_balance > 60 and aud_balance != 100:
         print("individual number: ", count, "    aud balance: ", aud_balance)
+    if aud_balance > 100:
+        print("buy function: ", buy_func, "    sell function: ", sell_fuc)
     return aud_balance
 
 
@@ -74,20 +83,18 @@ creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 # A class to represent an individual
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
-class Bool:
-    TRUE = True
-    FALSE = False
 # Initialize the primitive set
 # pass the current price as an argument to the trading rule
 pset = gp.PrimitiveSetTyped("main", [int, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series], Bool)
 
 # Define the functions that can be used in the tree
-pset.addPrimitive(sma, [int], pd.Series)
-pset.addPrimitive(rsi, [int], pd.Series)
-pset.addPrimitive(macd, [int, int, int], pd.Series)
+pset.addPrimitive(sma, [Window], pd.Series)
+pset.addPrimitive(rsi, [Window], pd.Series)
+pset.addPrimitive(macd, [Window, Window, Window], pd.Series)
 
 pset.addPrimitive(calc, [pd.Series, int], float)
 pset.addPrimitive(num, [], int)
+pset.addPrimitive(window, [], Window)
 
 pset.addPrimitive(operator.mul, [float, float], float)
 pset.addPrimitive(operator.mul, [int, float], float)
@@ -100,8 +107,9 @@ pset.renameArguments(ARG0="index"); pset.renameArguments(ARG1="Close"); pset.ren
 pset.renameArguments(ARG3="High"); pset.renameArguments(ARG4="Low"); pset.renameArguments(ARG5="Volume")
 
 #  Define the terminals that can be used in the tree
-pset.addTerminal(5, int); pset.addTerminal(10, int); pset.addTerminal(12, int); pset.addTerminal(20, int)
-pset.addTerminal(22, int); pset.addTerminal(25, int); pset.addTerminal(30, int); pset.addTerminal(35, int); pset.addTerminal(70, int)
+pset.addTerminal(5, Window); pset.addTerminal(10, Window); pset.addTerminal(12, Window); pset.addTerminal(20, Window)
+pset.addTerminal(22, Window); pset.addTerminal(25, Window); pset.addTerminal(30, Window); pset.addTerminal(50, Window); pset.addTerminal(70, Window)
+pset.addTerminal(100, Window); pset.addTerminal(150, Window); pset.addTerminal(200, Window); pset.addTerminal(250, Window); pset.addTerminal(300, Window)
 pset.addTerminal(0.1, float); pset.addTerminal(0.2, float); pset.addTerminal(0.3, float); pset.addTerminal(0.4, float); pset.addTerminal(0.5, float)
 pset.addTerminal(False, Bool)
 pset.addTerminal(True, Bool)
@@ -114,7 +122,7 @@ pset.addEphemeralConstant("rand101", lambda: random.uniform(-1, 1), float) # don
 toolbox = base.Toolbox()
 # a generator function that generates trees of functions and operands using the primitive set pset.
 toolbox.register(
-    "expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=3
+    "expr", gp.genHalfAndHalf, pset=pset, min_= 3, max_= 5
 )  # min_ and max_ are the minimum and maximum heights of the generated trees.
 # a function that creates a new individual from a generator function (expr).
 toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.expr)
@@ -133,7 +141,7 @@ toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 
 pop_size = 10000
-CXPB, MUTPB, NGEN = 0.5, 0.2, 100
+CXPB, MUTPB, NGEN = 0.5, 0.2, 25
 # initialize populations for buy and sell functions separately
 pop_buy = toolbox.population(n=pop_size)
 pop_sell = toolbox.population(n=pop_size)
