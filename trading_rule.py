@@ -65,25 +65,12 @@ def evaluate(buy_func, sell_func):
         aud_balance = btc_balance * ohlcv.loc[i, "Close"]
         btc_balance = 0
         aud_balance = 0.98*aud_balance
-    
-    
-    # make sure buy and sell functions have at least one indicator
-    buy_found = 0
-    sell_found = 0
-    # print("-------------------------------------------", str(buy_func))
-    for i in ["roc_5", "roc_10", "williams_5", "williams_10", "kama_5", "kama_10", "atr_5", "atr_10"]:
-        if str(buy_func).find(i) >= 0:
-            # print("---------------", str(buy_func).find(i))
-            buy_found = 1
-        if str(sell_func).find(i) >= 0:
-            sell_found = 1
-    if buy_found == 0 or sell_found == 0:
-        aud_balance = 0
 
     if aud_balance > 60 and aud_balance != 100:
         print("individual number: ", count, "    aud balance: ", aud_balance)
     if aud_balance > 100:
         print("buy function: ", buy_func, "    sell function: ", sell_func)
+
     return aud_balance
 
 
@@ -137,15 +124,16 @@ toolbox.register("evaluate", evaluate)
 toolbox.register("select", tools.selTournament, tournsize=4)
 # a crossover operator that applies one-point crossover to two individuals.
 toolbox.register("mate", gp.cxOnePoint)
-toolbox.register("expr_mut", gp.genFull, min_=0, max_=2)
+toolbox.register("expr_mut", gp.genFull, min_= 3, max_= 5)
 # a mutation operator that applies uniform mutation to an individual.
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 
-pop_size = 2000
+pop_size = 1000
 CXPB, MUTPB, NGEN = 0.8, 0.2, 30
 # initialize populations for buy and sell functions separately
 pop_buy = toolbox.population(n=pop_size)
 pop_sell = toolbox.population(n=pop_size)
+
 # evaluate fitness of initial populations (uses the evaluate function)
 fitnesses = [toolbox.evaluate(ind_buy, ind_sell) for ind_buy, ind_sell in zip(pop_buy,pop_sell)]
 # assign fitness values to the individuals
@@ -160,7 +148,7 @@ for g in range(NGEN):
     print("------------------------ Generation %i --------------------------" % g)
     
     # decrease population size to remove bad individuals
-    if (len(pop_buy) > 30):
+    if (len(pop_buy) > 100):
         newPop = len(pop_buy) - 50
     else:
         newPop = len(pop_buy)
