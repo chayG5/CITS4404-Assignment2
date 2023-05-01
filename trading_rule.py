@@ -130,7 +130,7 @@ toolbox.register("expr_mut", gp.genFull, min_= 3, max_= 5)
 # a mutation operator that applies uniform mutation to an individual.
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 
-pop_size = 5000
+pop_size = 1000
 CXPB, MUTPB, NGEN = 0.8, 0.2, 30
 # initialize populations for buy and sell functions separately
 pop_buy = toolbox.population(n=pop_size)
@@ -158,7 +158,7 @@ for g in range(NGEN):
     x_gen.append(g+1)
     # decrease population size to remove bad individuals
     if (len(pop_buy) > 100):
-        newPop = len(pop_buy) - 30
+        newPop = len(pop_buy) - 20
     else:
         newPop = len(pop_buy)
 
