@@ -3,6 +3,8 @@ from deap import gp, base, creator, tools
 import random
 import operator
 import ta
+import numpy as np
+import matplotlib.pyplot as plt
 
 count = 1
 ohlcv = get_OHLCV()
@@ -66,10 +68,10 @@ def evaluate(buy_func, sell_func):
         btc_balance = 0
         aud_balance = 0.98*aud_balance
 
-    if aud_balance > 60 and aud_balance != 100:
-        print("individual number: ", count, "    aud balance: ", aud_balance)
-    if aud_balance > 100:
-        print("buy function: ", buy_func, "    sell function: ", sell_func)
+    # if aud_balance > 60 and aud_balance != 100:
+    #     print("individual number: ", count, "    aud balance: ", aud_balance)
+    # if aud_balance > 100:
+    #     print("buy function: ", buy_func, "    sell function: ", sell_func)
 
     return aud_balance
 
@@ -128,7 +130,7 @@ toolbox.register("expr_mut", gp.genFull, min_= 3, max_= 5)
 # a mutation operator that applies uniform mutation to an individual.
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 
-pop_size = 1000
+pop_size = 5000
 CXPB, MUTPB, NGEN = 0.8, 0.2, 30
 # initialize populations for buy and sell functions separately
 pop_buy = toolbox.population(n=pop_size)
@@ -143,17 +145,22 @@ for ind_buy, fit, ind_sell in zip(
     ind_buy.fitness.values = (fit,)
     ind_sell.fitness.values = (fit,)
 
+x_gen = []
+y_profits = []
+
+# for plotting
+x_gen.append(0)
+y_profits.append((np.sum(np.array(fitnesses) > 100)/pop_size)*100)
+
 # run the genetic algorithm
 for g in range(NGEN):
     print("------------------------ Generation %i --------------------------" % g)
-    
+    x_gen.append(g+1)
     # decrease population size to remove bad individuals
     if (len(pop_buy) > 100):
-        newPop = len(pop_buy) - 50
+        newPop = len(pop_buy) - 30
     else:
         newPop = len(pop_buy)
-
-    print("Population size: ", newPop)
 
     # select the parents
     parents_buy = toolbox.select(pop_buy, newPop)
@@ -202,6 +209,9 @@ for g in range(NGEN):
     pop_buy[:] = offspring_buy
     pop_sell[:] = offspring_sell
 
+    all_fitnesses = [ind_buy.fitness.values[0] for ind_buy in pop_buy]
+    y_profits.append((np.sum(np.array(all_fitnesses) > 100)/newPop)*100)
+
 # get the best buy and sell functions
 best_buy = tools.selBest(pop_buy, k=1)[0]
 best_sell = tools.selBest(pop_sell, k=1)[0]
@@ -214,4 +224,14 @@ print(best_sell)
 
 final = evaluate(best_buy, best_sell)
 print("Final fitness: ", final)
+# results
+plt.plot(x_gen, y_profits)
 
+# set the x and y axis labels
+plt.xlabel('Generations')
+plt.ylabel('Percentage of profitable trades')
+# set the title of the plot
+plt.title('The number of profitable trades per generation')
+plt.show()
+print(x_gen)
+print(y_profits)
