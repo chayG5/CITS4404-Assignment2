@@ -8,6 +8,12 @@ import matplotlib.pyplot as plt
 
 count = 1
 ohlcv = get_OHLCV()
+open = ohlcv['Open']
+high = ohlcv['High']
+low = ohlcv['Low']
+close = ohlcv['Close']
+volume = ohlcv['Volume']
+obv = ta.volume.on_balance_volume(ohlcv['Close'], ohlcv['Volume'])
 roc_5 = ta.momentum.roc(ohlcv['Close'], window=5)
 roc_10 = ta.momentum.roc(ohlcv['Close'], window=10)
 williams_5 = ta.momentum.williams_r(ohlcv['High'], ohlcv['Low'], ohlcv['Close'], lbp=5)
@@ -21,23 +27,16 @@ class Bool:
     TRUE = True
     FALSE = False
 
-def volume():
+def volumeHelper():
     volume = ohlcv['Volume']
     return volume
 
 def calc(x: pd.Series, y: int) -> float:
-    if y >= len(x):
-        y = len(x) - 1
-    if len(x.shape) == 1:
-        return x.loc[y]
-    else:
-        return x.iloc[y, "Close"]
+    return x.loc[y]
     
 def num():
     return 1
 
-def window():
-    return 200
 # Define the evaluation function that maps a trading rule tree to a fitness value
 def evaluate(buy_func, sell_func):
     # to view the individual number (for debugging)
@@ -51,8 +50,8 @@ def evaluate(buy_func, sell_func):
     aud_balance = 100
 
     for i in range(len(ohlcv)):
-        buy_signal = buy(i, roc_5, roc_10, williams_5, williams_10, kama_5, kama_10, atr_5, atr_10)
-        sell_signal = sell(i, roc_5, roc_10, williams_5, williams_10, kama_5, kama_10, atr_5, atr_10)
+        buy_signal = buy(i, obv, roc_5, roc_10, williams_5, williams_10, kama_5, kama_10, atr_5, atr_10, close, open, high, low, volume)
+        sell_signal = sell(i, obv, roc_5, roc_10, williams_5, williams_10, kama_5, kama_10, atr_5, atr_10, close, open, high, low, volume)
         if buy_signal and not sell_signal and aud_balance > 0:
             aud_balance = 0.98*aud_balance
             btc_balance = aud_balance / ohlcv.loc[i, "Close"]
@@ -83,11 +82,11 @@ creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
 # Initialize the primitive set
-pset = gp.PrimitiveSetTyped("main", [int, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series], Bool)
+pset = gp.PrimitiveSetTyped("main", [int, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series], Bool)
 # Define the functions that can be used in the tree
 pset.addPrimitive(calc, [pd.Series, int], float)
 pset.addPrimitive(num, [], int)
-pset.addPrimitive(volume, [], pd.Series)
+pset.addPrimitive(volumeHelper, [], pd.Series)
 
 pset.addPrimitive(operator.mul, [float, float], float)
 pset.addPrimitive(operator.mul, [int, float], float)
@@ -96,17 +95,20 @@ pset.addPrimitive(operator.or_, [Bool, Bool], Bool)
 pset.addPrimitive(operator.not_, [Bool], Bool)
 pset.addPrimitive(operator.gt, [float, float], Bool)
 
-pset.renameArguments(ARG0="index")
-pset.renameArguments(ARG1="roc_5"); pset.renameArguments(ARG2="roc_10")
-pset.renameArguments(ARG3="williams_5"); pset.renameArguments(ARG4="williams_10")
-pset.renameArguments(ARG5="kama_5"); pset.renameArguments(ARG6="kama_10")
-pset.renameArguments(ARG7="atr_5"); pset.renameArguments(ARG8="atr_10")
+pset.renameArguments(ARG0="index");pset.renameArguments(ARG1="obv")
+pset.renameArguments(ARG2="roc_5");pset.renameArguments(ARG3="roc_10")
+pset.renameArguments(ARG4="williams_5");pset.renameArguments(ARG5="williams_10")
+pset.renameArguments(ARG6="kama_5");pset.renameArguments(ARG7="kama_10")
+pset.renameArguments(ARG8="atr_5");pset.renameArguments(ARG9="atr_10")
+pset.renameArguments(ARG10="close");pset.renameArguments(ARG11="open")
+pset.renameArguments(ARG12="high");pset.renameArguments(ARG13="low")
+pset.renameArguments(ARG14="volume")
 
 #  Define the terminals that can be used in the tree
 pset.addTerminal(0.1, float); pset.addTerminal(0.2, float); pset.addTerminal(0.3, float); pset.addTerminal(0.4, float); pset.addTerminal(0.5, float)
 pset.addTerminal(False, Bool)
 pset.addTerminal(True, Bool)
-pset.addEphemeralConstant("rand101", lambda: random.uniform(-1, 1), float) 
+# pset.addEphemeralConstant("rand101", lambda: random.uniform(-1, 1), float) 
 
 # Initialize the toolbox
 toolbox = base.Toolbox()
