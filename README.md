@@ -6,11 +6,12 @@ Trading Bot for Bitcoin by evolving the buy and sell functions using the DEAP fr
 2. Create a fitness function (the evaluate function in trading_rule.py file)
     - the parameters are the buy and sell functions (evolved by GP - will explain later)
     - The function produces a fitness value for the buy and sell function -> how good the buy/sell function is
-    - the parameters for the buy and sell functions are the index number and the "close" column of OHLCV data (these parameters might need changing..)
+    - the parameters for the buy and sell functions are the index number and the TA indicators for the 5 and 10 period 
     - the functions produce a boolean output: where true refers to a buy/sell trigger
     - when the trigger changes from false to true then buy/sell 
     - each time you buy or sell, -2% of current holdings 
     - more detail in the task sheet (pg.6 under Strategy evaluation)
+    - the combination of buy and sell function that is received, is evaluated based on the profit it generates. 
 3. Intialise the primitive set and the toolbox (this is part of DEAP framework which is explained below)
 4. How GP is implemented:
     - Step 1: initialise a population of individuals: in our case the individuals are the buy and sell functions
