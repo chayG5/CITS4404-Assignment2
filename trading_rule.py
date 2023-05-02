@@ -8,12 +8,6 @@ import matplotlib.pyplot as plt
 
 count = 1
 ohlcv = get_OHLCV()
-open = ohlcv['Open']
-high = ohlcv['High']
-low = ohlcv['Low']
-close = ohlcv['Close']
-volume = ohlcv['Volume']
-obv = ta.volume.on_balance_volume(ohlcv['Close'], ohlcv['Volume'])
 roc_5 = ta.momentum.roc(ohlcv['Close'], window=5)
 roc_10 = ta.momentum.roc(ohlcv['Close'], window=10)
 williams_5 = ta.momentum.williams_r(ohlcv['High'], ohlcv['Low'], ohlcv['Close'], lbp=5)
@@ -27,16 +21,23 @@ class Bool:
     TRUE = True
     FALSE = False
 
-def volumeHelper():
+def volume():
     volume = ohlcv['Volume']
     return volume
 
 def calc(x: pd.Series, y: int) -> float:
-    return x.loc[y]
+    if y >= len(x):
+        y = len(x) - 1
+    if len(x.shape) == 1:
+        return x.loc[y]
+    else:
+        return x.iloc[y, "Close"]
     
 def num():
     return 1
 
+def window():
+    return 200
 # Define the evaluation function that maps a trading rule tree to a fitness value
 def evaluate(buy_func, sell_func):
     # to view the individual number (for debugging)
@@ -50,8 +51,8 @@ def evaluate(buy_func, sell_func):
     aud_balance = 100
 
     for i in range(len(ohlcv)):
-        buy_signal = buy(i, obv, roc_5, roc_10, williams_5, williams_10, kama_5, kama_10, atr_5, atr_10, close, open, high, low, volume)
-        sell_signal = sell(i, obv, roc_5, roc_10, williams_5, williams_10, kama_5, kama_10, atr_5, atr_10, close, open, high, low, volume)
+        buy_signal = buy(i, roc_5, roc_10, williams_5, williams_10, kama_5, kama_10, atr_5, atr_10)
+        sell_signal = sell(i, roc_5, roc_10, williams_5, williams_10, kama_5, kama_10, atr_5, atr_10)
         if buy_signal and not sell_signal and aud_balance > 0:
             aud_balance = 0.98*aud_balance
             btc_balance = aud_balance / ohlcv.loc[i, "Close"]
@@ -67,10 +68,10 @@ def evaluate(buy_func, sell_func):
         btc_balance = 0
         aud_balance = 0.98*aud_balance
 
-    # if aud_balance > 60 and aud_balance != 100:
-    #     print("individual number: ", count, "    aud balance: ", aud_balance)
-    # if aud_balance > 100:
-    #     print("buy function: ", buy_func, "    sell function: ", sell_func)
+    if aud_balance > 60 and aud_balance != 100:
+        print("individual number: ", count, "    aud balance: ", aud_balance)
+    if aud_balance > 100:
+        print("buy function: ", buy_func, "    sell function: ", sell_func)
 
     return aud_balance
 
@@ -82,11 +83,11 @@ creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
 # Initialize the primitive set
-pset = gp.PrimitiveSetTyped("main", [int, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series], Bool)
+pset = gp.PrimitiveSetTyped("main", [int, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series], Bool)
 # Define the functions that can be used in the tree
 pset.addPrimitive(calc, [pd.Series, int], float)
 pset.addPrimitive(num, [], int)
-pset.addPrimitive(volumeHelper, [], pd.Series)
+pset.addPrimitive(volume, [], pd.Series)
 
 pset.addPrimitive(operator.mul, [float, float], float)
 pset.addPrimitive(operator.mul, [int, float], float)
@@ -95,20 +96,17 @@ pset.addPrimitive(operator.or_, [Bool, Bool], Bool)
 pset.addPrimitive(operator.not_, [Bool], Bool)
 pset.addPrimitive(operator.gt, [float, float], Bool)
 
-pset.renameArguments(ARG0="index");pset.renameArguments(ARG1="obv")
-pset.renameArguments(ARG2="roc_5");pset.renameArguments(ARG3="roc_10")
-pset.renameArguments(ARG4="williams_5");pset.renameArguments(ARG5="williams_10")
-pset.renameArguments(ARG6="kama_5");pset.renameArguments(ARG7="kama_10")
-pset.renameArguments(ARG8="atr_5");pset.renameArguments(ARG9="atr_10")
-pset.renameArguments(ARG10="close");pset.renameArguments(ARG11="open")
-pset.renameArguments(ARG12="high");pset.renameArguments(ARG13="low")
-pset.renameArguments(ARG14="volume")
+pset.renameArguments(ARG0="index")
+pset.renameArguments(ARG1="roc_5"); pset.renameArguments(ARG2="roc_10")
+pset.renameArguments(ARG3="williams_5"); pset.renameArguments(ARG4="williams_10")
+pset.renameArguments(ARG5="kama_5"); pset.renameArguments(ARG6="kama_10")
+pset.renameArguments(ARG7="atr_5"); pset.renameArguments(ARG8="atr_10")
 
 #  Define the terminals that can be used in the tree
 pset.addTerminal(0.1, float); pset.addTerminal(0.2, float); pset.addTerminal(0.3, float); pset.addTerminal(0.4, float); pset.addTerminal(0.5, float)
 pset.addTerminal(False, Bool)
 pset.addTerminal(True, Bool)
-# pset.addEphemeralConstant("rand101", lambda: random.uniform(-1, 1), float) 
+pset.addEphemeralConstant("rand101", lambda: random.uniform(-1, 1), float) 
 
 # Initialize the toolbox
 toolbox = base.Toolbox()
@@ -133,7 +131,7 @@ toolbox.register("expr_mut", gp.genFull, min_= 3, max_= 5)
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 
 pop_size = 1000
-CXPB, MUTPB, NGEN = 0.8, 0.2, 30
+CXPB, MUTPB, NGEN = 0.7, 0.2, 30
 # initialize populations for buy and sell functions separately
 pop_buy = toolbox.population(n=pop_size)
 pop_sell = toolbox.population(n=pop_size)
@@ -149,10 +147,12 @@ for ind_buy, fit, ind_sell in zip(
 
 x_gen = []
 y_profits = []
+y_avgProfit = []
 
 # for plotting
 x_gen.append(0)
 y_profits.append((np.sum(np.array(fitnesses) > 100)/pop_size)*100)
+y_avgProfit.append(np.mean((np.array(fitnesses) - 100)))
 
 # run the genetic algorithm
 for g in range(NGEN):
@@ -160,9 +160,11 @@ for g in range(NGEN):
     x_gen.append(g+1)
     # decrease population size to remove bad individuals
     if (len(pop_buy) > 100):
-        newPop = len(pop_buy) - 20
+        newPop = len(pop_buy) - 50
     else:
         newPop = len(pop_buy)
+
+    print("Population size: ", newPop)
 
     # select the parents
     parents_buy = toolbox.select(pop_buy, newPop)
@@ -213,27 +215,23 @@ for g in range(NGEN):
 
     all_fitnesses = [ind_buy.fitness.values[0] for ind_buy in pop_buy]
     y_profits.append((np.sum(np.array(all_fitnesses) > 100)/newPop)*100)
+    y_avgProfit.append(np.mean((np.array(all_fitnesses) - 100)))
 
 # get the best buy and sell functions
 best_buy = tools.selBest(pop_buy, k=1)[0]
 best_sell = tools.selBest(pop_sell, k=1)[0]
 
-# compile the best buy and sell functions
-buy_func = gp.compile(best_buy, pset)
-sell_func = gp.compile(best_sell, pset)
-print(best_buy)
-print(best_sell)
-
 final = evaluate(best_buy, best_sell)
 print("Final fitness: ", final)
+
 # results
-plt.plot(x_gen, y_profits)
+plt.plot(x_gen, y_avgProfit)
 
 # set the x and y axis labels
 plt.xlabel('Generations')
-plt.ylabel('Percentage of profitable trades')
+plt.ylabel('average profit')
 # set the title of the plot
-plt.title('The number of profitable trades per generation')
+plt.title('The average profit per generation')
 plt.show()
 print(x_gen)
-print(y_profits)
+print(y_avgProfit)
