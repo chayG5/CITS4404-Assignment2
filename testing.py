@@ -6,8 +6,12 @@ import ta
 import numpy as np
 import matplotlib.pyplot as plt
 
-count = 1
+count = 0
 ohlcv = get_OHLCV()
+
+training_data = ohlcv.iloc[:400, :]
+test_data = ohlcv.iloc[400:, :]
+test_data.reset_index(drop=True, inplace=True)
 
 close = ohlcv['Close']
 obv = ta.volume.on_balance_volume(close, ohlcv['Volume'])
@@ -50,7 +54,7 @@ def cons():
     return 1
 
 # Define the evaluation function that maps a trading rule tree to a fitness value
-def evaluate(buy_func, sell_func):
+def evaluate(buy_func, sell_func, data):
     # to view the individual number (for debugging)
     global count
     count += 1
@@ -61,21 +65,21 @@ def evaluate(buy_func, sell_func):
     btc_balance = 0
     aud_balance = 100
 
-    for i in range(len(ohlcv)):
+    for i in range(len(data)):
         buy_signal = buy(i, obv, macd, macd_signal, roc_5, roc_10)
         sell_signal = sell(i, obv, macd, macd_signal, roc_5, roc_10)
         if buy_signal and not sell_signal and aud_balance > 0:
             aud_balance = 0.98*aud_balance
-            btc_balance = aud_balance / ohlcv.loc[i, "Close"]
+            btc_balance = aud_balance / data.loc[i, "Close"]
             aud_balance = 0
         elif sell_signal and not buy_signal and btc_balance > 0:
-            aud_balance = btc_balance * ohlcv.loc[i, "Close"]
+            aud_balance = btc_balance * data.loc[i, "Close"]
             btc_balance = 0
             aud_balance = 0.98*aud_balance
 
     # sell any remaining BTC
     if btc_balance > 0:
-        aud_balance = btc_balance * ohlcv.loc[i, "Close"]
+        aud_balance = btc_balance * data.loc[i, "Close"]
         btc_balance = 0
         aud_balance = 0.98*aud_balance
 
@@ -155,7 +159,7 @@ pop_buy = toolbox.population(n=pop_size)
 pop_sell = toolbox.population(n=pop_size)
 
 # evaluate fitness of initial populations (uses the evaluate function)
-fitnesses = [toolbox.evaluate(ind_buy, ind_sell) for ind_buy, ind_sell in zip(pop_buy,pop_sell)]
+fitnesses = [toolbox.evaluate(ind_buy, ind_sell, training_data) for ind_buy, ind_sell in zip(pop_buy,pop_sell)]
 # assign fitness values to the individuals
 for ind_buy, fit, ind_sell in zip(
     pop_buy, fitnesses, pop_sell
@@ -219,7 +223,7 @@ for g in range(NGEN):
     # Evaluate the individuals with an invalid fitness
     invalid_ind_buy = [ind for ind in offspring_buy if not ind.fitness.valid]
     invalid_ind_sell = [ind for ind in offspring_sell if not ind.fitness.valid]
-    fitnesses = [toolbox.evaluate(ind_buy, ind_sell) for ind_buy, ind_sell in zip(invalid_ind_buy,invalid_ind_sell)]
+    fitnesses = [toolbox.evaluate(ind_buy, ind_sell, training_data) for ind_buy, ind_sell in zip(invalid_ind_buy,invalid_ind_sell)]
     
     for ind, fit in zip(invalid_ind_buy, fitnesses):
         ind.fitness.values = (fit,)
@@ -239,7 +243,7 @@ for g in range(NGEN):
 best_buy = tools.selBest(pop_buy, k=1)[0]
 best_sell = tools.selBest(pop_sell, k=1)[0]
 
-final = evaluate(best_buy, best_sell)
+final = evaluate(best_buy, best_sell, test_data)
 print("Final fitness: ", final)
 
 # results
@@ -253,3 +257,5 @@ plt.title('The average profit per generation')
 plt.show()
 print(x_gen)
 print(y_avgProfit)
+
+print("Test set: ", evaluate(best_buy, best_sell, test_data))
