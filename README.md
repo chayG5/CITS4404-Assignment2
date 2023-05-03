@@ -1,5 +1,5 @@
 # CITS4404-Assignment2
-Trading Bot for Bitcoin by evolving the buy and sell functions using the DEAP framework. 
+Trading Bot for Bitcoin by evolving the buy and sell functions using Genetic Programming. 
 
 # Explanation
 1. Get OHLCV data from Kraken Exchange using CCXT package (get_data.py file)
