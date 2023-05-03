@@ -1,7 +1,6 @@
 # import modules
 import ccxt
 import pandas as pd
-import ta
 
 
 def get_OHLCV():
@@ -18,21 +17,3 @@ def get_OHLCV():
     # convert unix timestamp to readable date
     data["Date"] = pd.to_datetime(data["Date"], unit="ms")
     return data
-
-# data = get_OHLCV().to_csv("OHLCV_data")
-
-
-def add_taIndicators():
-    ohlcv = get_OHLCV()
-    # calculate the technical indicators using the ta library
-    ohlcv['SMA'] = ta.trend.sma_indicator(ohlcv['Close'], window=20)
-    ohlcv['RSI'] = ta.momentum.rsi(ohlcv['Close'], window=14)
-    ohlcv['BB_lower'] = ta.volatility.bollinger_lband(ohlcv['Close'], window=20)
-    ohlcv['BB_upper'] = ta.volatility.bollinger_hband(ohlcv['Close'], window=20)
-
-    # Drop rows with missing values
-    ohlcv.dropna(inplace=True)
-    return ohlcv
-
-# testing = get_OHLCV()["Close"]
-# print(testing.loc[1])
