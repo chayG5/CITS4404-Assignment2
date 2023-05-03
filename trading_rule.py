@@ -148,7 +148,7 @@ toolbox.register("expr_mut", gp.genFull, min_= 2, max_= 4)
 # a mutation operator that applies uniform mutation to an individual.
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 
-pop_size = 1500
+pop_size = 5000
 CXPB, MUTPB, NGEN = 0.5, 0.2, 30
 # initialize populations for buy and sell functions separately
 pop_buy = toolbox.population(n=pop_size)
