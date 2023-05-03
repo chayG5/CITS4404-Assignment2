@@ -14,6 +14,9 @@ obv = ta.volume.on_balance_volume(close, ohlcv['Volume'])
 rsi = ta.momentum.rsi(close, window=14)
 macd = ta.trend.macd(close, 26, 12, 9)
 macd_signal = ta.trend.macd_signal(close, 26, 12, 9)
+roc_5 = ta.momentum.roc(close, window=5)
+roc_10 = ta.momentum.roc(close, window=10)
+
 
 
 class Bool:
@@ -60,8 +63,8 @@ def evaluate(buy_func, sell_func):
     aud_balance = 100
 
     for i in range(len(ohlcv)):
-        buy_signal = buy(i, obv, macd, macd_signal)
-        sell_signal = sell(i, obv, macd, macd_signal)
+        buy_signal = buy(i, obv, macd, macd_signal, roc_5, roc_10)
+        sell_signal = sell(i, obv, macd, macd_signal, roc_5, roc_10)
         if buy_signal and not sell_signal and aud_balance > 0:
             aud_balance = 0.98*aud_balance
             btc_balance = aud_balance / ohlcv.loc[i, "Close"]
@@ -93,7 +96,7 @@ creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
 # Initialize the primitive set
-pset = gp.PrimitiveSetTyped("main", [int, pd.Series, pd.Series, pd.Series], Bool)
+pset = gp.PrimitiveSetTyped("main", [int, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series], Bool)
 # Define the functions that can be used in the tree
 
 pset.addPrimitive(num, [], int)
@@ -112,6 +115,8 @@ pset.addPrimitive(operator.not_, [Bool], Bool)
 
 pset.renameArguments(ARG0="index"); pset.renameArguments(ARG1="obv")
 pset.renameArguments(ARG2="macd"); pset.renameArguments(ARG3="macd_signal")
+pset.renameArguments(ARG4="roc_5"); pset.renameArguments(ARG5="roc_10")
+
 
 
 
