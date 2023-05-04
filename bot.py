@@ -4,7 +4,7 @@ from helper import *
 import matplotlib.pyplot as plt
 
 # run the genetic program: parameter: population size, number of generations
-pop_buy, pop_sell, x_gen, y_avgProfit = genetic_program(200, 30)
+pop_buy, pop_sell, x_gen, y_avgProfit = genetic_program(300, 50)
 
 # get the best buy and sell functions
 best_buy = tools.selBest(pop_buy, k=1)[0]
