@@ -31,8 +31,9 @@ def genetic_program(pop, gen):
 
     # run the genetic algorithm
     for g in range(NGEN):
-        print("------------------------ Generation %i --------------------------" % g+1)
-        x_gen.append(g+1)
+        g=g+1
+        print("------------------------ Generation %i --------------------------" % g)
+        x_gen.append(g)
         # decrease population size to remove bad individuals
         if (len(pop_buy) > 500):
             newPop = len(pop_buy) - 300
