@@ -5,22 +5,22 @@ import matplotlib.pyplot as plt
 
 # run the genetic program: parameter: population size, number of generations
 pop_buy, pop_sell, x_gen, y_avgProfit = genetic_program(200, 30)
+
 # get the best buy and sell functions
 best_buy = tools.selBest(pop_buy, k=1)[0]
 best_sell = tools.selBest(pop_sell, k=1)[0]
 
-# results
+# average profit per generation plot
 plt.plot(x_gen, y_avgProfit)
 
 # set the x and y axis labels
 plt.xlabel('Generations')
-plt.ylabel('average profit')
+plt.ylabel('Average Profit')
+
 # set the title of the plot
-plt.title('The average profit per generation')
+plt.title('The Average Profit Per Generation')
 plt.show()
-print(x_gen)
-print(y_avgProfit)
 
+# get the profit using the evolved bot
 final = evaluate(best_buy, best_sell, test_data)
-
-print("Test set: ", final)
+print("Final Profit: ", final)
