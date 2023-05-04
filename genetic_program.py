@@ -40,8 +40,6 @@ def genetic_program(pop, gen):
         else:
             newPop = len(pop_buy)
 
-        print("Population size: ", newPop)
-
         # select the parents
         parents_buy = toolbox.select(pop_buy, newPop)
         parents_sell = toolbox.select(pop_sell, newPop)

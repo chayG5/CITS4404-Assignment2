@@ -4,9 +4,11 @@ import operator
 
 # Define the evaluation function that maps a trading rule tree to a fitness value
 def evaluate(buy_func, sell_func, data):
+
     # to view the individual number (for debugging)
     global count
     count += 1
+
     # Convert the individual to a callable function
     buy = gp.compile(buy_func, pset)
     sell = gp.compile(sell_func, pset)
@@ -32,12 +34,6 @@ def evaluate(buy_func, sell_func, data):
         btc_balance = 0
         aud_balance = 0.98*aud_balance
 
-    if aud_balance > 60 and aud_balance != 100:
-        print("individual number: ", count, "    aud balance: ", aud_balance)
-        # print("buy function: ", buy_func, "    sell function: ", sell_func)
-    if aud_balance > 100:
-        print("buy function: ", buy_func, "    sell function: ", sell_func)
-
     return aud_balance
 
 # A class to represent the fitness of an individual
@@ -51,7 +47,7 @@ pset = gp.PrimitiveSetTyped("main", [int], Bool)
 # Define the functions that can be used in the tree
 pset.addPrimitive(num, [], int)
 
-# the indicators
+# the indicator functions added as nodes in the tree
 pset.addPrimitive(comparemacd, [int], Bool)
 pset.addPrimitive(rsi_30, [int], Bool)
 pset.addPrimitive(rsi_70, [int], Bool)
@@ -62,7 +58,7 @@ pset.addPrimitive(detectObv, [int], Bool)
 pset.addPrimitive(sma_20_50, [int], Bool)
 pset.addPrimitive(sma_50_20, [int], Bool)
 
-# operators 
+# operator nodes
 pset.addPrimitive(operator.and_, [Bool, Bool], Bool)
 pset.addPrimitive(operator.or_, [Bool, Bool], Bool)
 pset.addPrimitive(operator.not_, [Bool], Bool)
