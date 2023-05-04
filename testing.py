@@ -4,23 +4,36 @@ import random
 import operator
 import ta
 import numpy as np
-import matplotlib.pyplot as plt
 
 count = 0
 ohlcv = get_OHLCV()
+size = 325
 
-training_data = ohlcv.iloc[:400, :]
-test_data = ohlcv.iloc[400:, :]
+training_data = ohlcv.iloc[:size, :]
+test_data = ohlcv.iloc[size:, :]
 test_data.reset_index(drop=True, inplace=True)
 
-close = ohlcv['Close']
-obv = ta.volume.on_balance_volume(close, ohlcv['Volume'])
-rsi = ta.momentum.rsi(close, window=14)
-macd = ta.trend.macd(close, 26, 12, 9)
-macd_signal = ta.trend.macd_signal(close, 26, 12, 9)
-roc_5 = ta.momentum.roc(close, window=5)
-roc_10 = ta.momentum.roc(close, window=10)
+test_close = test_data['Close']; test_volume = test_data['Volume']
+train_close = training_data['Close']; train_volume = training_data['Volume']
+test_high = test_data['High']; test_low = test_data['Low']
+train_high = training_data['High']; train_low = training_data['Low']
 
+rsi_test = ta.momentum.rsi(test_close, window=14)
+rsi_train = ta.momentum.rsi(train_close, window=14)
+macd_test = ta.trend.macd(test_close, 26, 12, 9)
+macd_train = ta.trend.macd(train_close, 26, 12, 9)
+macd_signal_test = ta.trend.macd_signal(test_close, 26, 12, 9)
+macd_signal_train = ta.trend.macd_signal(train_close, 26, 12, 9)
+bbh_test = ta.volatility.bollinger_hband(test_close, window=20, window_dev=2)
+bbh_train = ta.volatility.bollinger_hband(train_close, window=20, window_dev=2)
+obv_test = ta.volume.on_balance_volume(test_close, test_volume)
+obv_train = ta.volume.on_balance_volume(train_close, train_volume)
+stoch_test = ta.momentum.stoch(test_close, test_high, test_low, 14, 3)
+stoch_train = ta.momentum.stoch(train_close, train_high, train_low, 14, 3)
+sma_20_test = ta.trend.sma_indicator(test_close, window=20)
+sma_20_train = ta.trend.sma_indicator(train_close, window=20)
+sma_50_test = ta.trend.sma_indicator(test_close, window=50)
+sma_50_train = ta.trend.sma_indicator(train_close, window=50)
 
 class Bool:
     TRUE = True
@@ -34,23 +47,64 @@ class Constant:
     five = 0.5
     actualOne = 1
 
-def greaterThan(val1: pd.Series, val2: pd.Series, t: int, c: Constant) -> Bool:
-    return val1.loc[t] > c *  val2.loc[t]
+def comparemacd(t:int) -> Bool:
+    if t >= size:
+        return macd_test.loc[t] > macd_signal_test.loc[t]
+    else:
+        return macd_train.loc[t] > macd_signal_train.loc[t]
 
 def rsi_30(t: int) -> Bool:
-    return rsi.loc[t] < 30
+    if t >= size:
+        return rsi_test.loc[t] < 30
+    else:
+        return rsi_train.loc[t] < 30
 
 def rsi_70(t: int) -> Bool:
-    return rsi.loc[t] > 70
+    if t >= size:
+        return rsi_test.loc[t] > 70
+    else:
+        return rsi_train.loc[t] > 70
 
-def volume():
-    volume = ohlcv['Volume']
-    return volume
+
+def detectbbh(t: int) -> Bool:
+    if t >= size:
+        return test_close.loc[t] > bbh_test.loc[t]
+    else:
+        return train_close.loc[t] > bbh_train.loc[t]
+
+def detectObv(t: int) -> Bool:
+    if t == 0:
+        return False
+    if t >= size:
+        return obv_test.loc[t] > obv_test.loc[t-1]
+    else:
+        return obv_train.loc[t] > obv_train.loc[t-1]
+
+def Stoch_20(t: int) -> Bool:
+    if t >= size:
+        return stoch_test.loc[t] < 20
+    else:
+        return stoch_train.loc[t] < 20
+
+def Stoch_80(t: int) -> Bool:
+    if t >= size:
+        return stoch_test.loc[t] > 80
+    else:
+        return stoch_train.loc[t] > 80
+
+def sma_20_50(t: int) -> Bool:
+    if t >= size:
+        return sma_20_test.loc[t] > sma_50_test.loc[t]
+    else:
+        return sma_20_train.loc[t] > sma_50_train.loc[t]
+
+def sma_50_20(t: int) -> Bool:
+    if t >= size:
+        return sma_20_test.loc[t] < sma_50_test.loc[t]
+    else:
+        return sma_20_train.loc[t] < sma_50_train.loc[t]
 
 def num():
-    return 1
-
-def cons():
     return 1
 
 # Define the evaluation function that maps a trading rule tree to a fitness value
@@ -66,8 +120,8 @@ def evaluate(buy_func, sell_func, data):
     aud_balance = 100
 
     for i in range(len(data)):
-        buy_signal = buy(i, obv, macd, macd_signal, roc_5, roc_10)
-        sell_signal = sell(i, obv, macd, macd_signal, roc_5, roc_10)
+        buy_signal = buy(i)
+        sell_signal = sell(i)
         if buy_signal and not sell_signal and aud_balance > 0:
             aud_balance = 0.98*aud_balance
             btc_balance = aud_balance / data.loc[i, "Close"]
@@ -91,41 +145,38 @@ def evaluate(buy_func, sell_func, data):
 
     return aud_balance
 
-
-
 # A class to represent the fitness of an individual
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 # A class to represent an individual
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
 # Initialize the primitive set
-pset = gp.PrimitiveSetTyped("main", [int, pd.Series, pd.Series, pd.Series, pd.Series, pd.Series], Bool)
+pset = gp.PrimitiveSetTyped("main", [int], Bool)
 # Define the functions that can be used in the tree
 
 pset.addPrimitive(num, [], int)
-pset.addPrimitive(cons, [], Constant)
-pset.addPrimitive(volume, [], pd.Series)
+# pset.addPrimitive(cons, [], Constant)
+# pset.addPrimitive(volume, [], pd.Series)
 
-pset.addPrimitive(greaterThan, [pd.Series, pd.Series, int, Constant], Bool)
+pset.addPrimitive(comparemacd, [int], Bool)
 pset.addPrimitive(rsi_30, [int], Bool)
 pset.addPrimitive(rsi_70, [int], Bool)
-
+pset.addPrimitive(detectbbh, [int], Bool)
+pset.addPrimitive(Stoch_20, [int], Bool)
+pset.addPrimitive(Stoch_80, [int], Bool)
+pset.addPrimitive(detectObv, [int], Bool)
+pset.addPrimitive(sma_20_50, [int], Bool)
+pset.addPrimitive(sma_50_20, [int], Bool)
 
 pset.addPrimitive(operator.and_, [Bool, Bool], Bool)
 pset.addPrimitive(operator.or_, [Bool, Bool], Bool)
 pset.addPrimitive(operator.not_, [Bool], Bool)
 
-
-pset.renameArguments(ARG0="index"); pset.renameArguments(ARG1="obv")
-pset.renameArguments(ARG2="macd"); pset.renameArguments(ARG3="macd_signal")
-pset.renameArguments(ARG4="roc_5"); pset.renameArguments(ARG5="roc_10")
-
+pset.renameArguments(ARG0="index")
 
 
 
 #  Define the terminals that can be used in the tree
-pset.addTerminal(0.1, Constant); pset.addTerminal(0.2, Constant); pset.addTerminal(0.3, Constant); pset.addTerminal(0.4, Constant)
-pset.addTerminal(0.5, Constant); pset.addTerminal(1, Constant)
 pset.addTerminal(False, Bool)
 pset.addTerminal(True, Bool)
 
@@ -152,110 +203,93 @@ toolbox.register("expr_mut", gp.genFull, min_= 2, max_= 4)
 # a mutation operator that applies uniform mutation to an individual.
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 
-pop_size = 5000
-CXPB, MUTPB, NGEN = 0.5, 0.2, 10
-# initialize populations for buy and sell functions separately
-pop_buy = toolbox.population(n=pop_size)
-pop_sell = toolbox.population(n=pop_size)
+def genetic_program(pop, gen):
+    pop_size = pop
+    CXPB, MUTPB, NGEN = 0.5, 0.2, gen
+    # initialize populations for buy and sell functions separately
+    pop_buy = toolbox.population(n=pop_size)
+    pop_sell = toolbox.population(n=pop_size)
 
-# evaluate fitness of initial populations (uses the evaluate function)
-fitnesses = [toolbox.evaluate(ind_buy, ind_sell, training_data) for ind_buy, ind_sell in zip(pop_buy,pop_sell)]
-# assign fitness values to the individuals
-for ind_buy, fit, ind_sell in zip(
-    pop_buy, fitnesses, pop_sell
-):
-    ind_buy.fitness.values = (fit,)
-    ind_sell.fitness.values = (fit,)
+    # evaluate fitness of initial populations (uses the evaluate function)
+    fitnesses = [toolbox.evaluate(ind_buy, ind_sell, training_data) for ind_buy, ind_sell in zip(pop_buy,pop_sell)]
+    # assign fitness values to the individuals
+    for ind_buy, fit, ind_sell in zip(
+        pop_buy, fitnesses, pop_sell
+    ):
+        ind_buy.fitness.values = (fit,)
+        ind_sell.fitness.values = (fit,)
 
-x_gen = []
-y_profits = []
-y_avgProfit = []
+    x_gen = []
+    y_profits = []
+    y_avgProfit = []
 
-# for plotting
-x_gen.append(0)
-y_profits.append((np.sum(np.array(fitnesses) > 100)/pop_size)*100)
-y_avgProfit.append(np.mean((np.array(fitnesses) - 100)))
+    # for plotting
+    x_gen.append(0)
+    y_profits.append((np.sum(np.array(fitnesses) > 100)/pop_size)*100)
+    y_avgProfit.append(np.mean((np.array(fitnesses) - 100)))
 
-# run the genetic algorithm
-for g in range(NGEN):
-    print("------------------------ Generation %i --------------------------" % g)
-    x_gen.append(g+1)
-    # decrease population size to remove bad individuals
-    if (len(pop_buy) > 100):
-        newPop = len(pop_buy) - 50
-    else:
-        newPop = len(pop_buy)
+    # run the genetic algorithm
+    for g in range(NGEN):
+        print("------------------------ Generation %i --------------------------" % g)
+        x_gen.append(g+1)
+        # decrease population size to remove bad individuals
+        if (len(pop_buy) > 500):
+            newPop = len(pop_buy) - 300
+        else:
+            newPop = len(pop_buy)
 
-    print("Population size: ", newPop)
+        print("Population size: ", newPop)
 
-    # select the parents
-    parents_buy = toolbox.select(pop_buy, newPop)
-    parents_sell = toolbox.select(pop_sell, newPop)
+        # select the parents
+        parents_buy = toolbox.select(pop_buy, newPop)
+        parents_sell = toolbox.select(pop_sell, newPop)
 
-    # create offspring using genetic operators
-    offspring_buy = [toolbox.clone(ind) for ind in parents_buy]
-    offspring_sell = [toolbox.clone(ind) for ind in parents_sell]
+        # create offspring using genetic operators
+        offspring_buy = [toolbox.clone(ind) for ind in parents_buy]
+        offspring_sell = [toolbox.clone(ind) for ind in parents_sell]
 
-    # crossover for buy and sell functions separately
-    for child1, child2 in zip(offspring_buy[::2], offspring_buy[1::2]):
-        if random.random() < CXPB:
-            toolbox.mate(child1, child2)
-        del child1.fitness.values
-        del child2.fitness.values
+        # crossover for buy and sell functions separately
+        for child1, child2 in zip(offspring_buy[::2], offspring_buy[1::2]):
+            if random.random() < CXPB:
+                toolbox.mate(child1, child2)
+            del child1.fitness.values
+            del child2.fitness.values
 
-    for child1, child2 in zip(offspring_sell[::2], offspring_sell[1::2]):
-        if random.random() < 0.5:
-            toolbox.mate(child1, child2)
-        del child1.fitness.values
-        del child2.fitness.values
+        for child1, child2 in zip(offspring_sell[::2], offspring_sell[1::2]):
+            if random.random() < CXPB:
+                toolbox.mate(child1, child2)
+            del child1.fitness.values
+            del child2.fitness.values
 
-    # mutate the offspring
-    for mutant in offspring_buy:
-        if random.random() < MUTPB:
-            toolbox.mutate(mutant)
-            del mutant.fitness.values
+        # mutate the offspring
+        for mutant in offspring_buy:
+            if random.random() < MUTPB:
+                toolbox.mutate(mutant)
+                del mutant.fitness.values
 
-    for mutant in offspring_sell:
-        if random.random() < MUTPB:
-            toolbox.mutate(mutant)
-            del mutant.fitness.values
+        for mutant in offspring_sell:
+            if random.random() < MUTPB:
+                toolbox.mutate(mutant)
+                del mutant.fitness.values
 
-    # Evaluate the individuals with an invalid fitness
-    invalid_ind_buy = [ind for ind in offspring_buy if not ind.fitness.valid]
-    invalid_ind_sell = [ind for ind in offspring_sell if not ind.fitness.valid]
-    fitnesses = [toolbox.evaluate(ind_buy, ind_sell, training_data) for ind_buy, ind_sell in zip(invalid_ind_buy,invalid_ind_sell)]
-    
-    for ind, fit in zip(invalid_ind_buy, fitnesses):
-        ind.fitness.values = (fit,)
+        # Evaluate the individuals with an invalid fitness
+        invalid_ind_buy = [ind for ind in offspring_buy if not ind.fitness.valid]
+        invalid_ind_sell = [ind for ind in offspring_sell if not ind.fitness.valid]
+        fitnesses = [toolbox.evaluate(ind_buy, ind_sell, training_data) for ind_buy, ind_sell in zip(invalid_ind_buy,invalid_ind_sell)]
+        
+        for ind, fit in zip(invalid_ind_buy, fitnesses):
+            ind.fitness.values = (fit,)
 
-    for ind, fit in zip(invalid_ind_sell, fitnesses):
-        ind.fitness.values = (fit,)
+        for ind, fit in zip(invalid_ind_sell, fitnesses):
+            ind.fitness.values = (fit,)
 
-    # The population is entirely replaced by the offspring
-    pop_buy[:] = offspring_buy
-    pop_sell[:] = offspring_sell
+        # The population is entirely replaced by the offspring
+        pop_buy[:] = offspring_buy
+        pop_sell[:] = offspring_sell
 
-    all_fitnesses = [ind_buy.fitness.values[0] for ind_buy in pop_buy]
-    y_profits.append((np.sum(np.array(all_fitnesses) > 100)/newPop)*100)
-    y_avgProfit.append(np.mean((np.array(all_fitnesses) - 100)))
+        all_fitnesses = [ind_buy.fitness.values[0] for ind_buy in pop_buy]
+        y_profits.append((np.sum(np.array(all_fitnesses) > 100)/newPop)*100)
+        y_avgProfit.append(np.mean((np.array(all_fitnesses) - 100)))
 
-# get the best buy and sell functions
-best_buy = tools.selBest(pop_buy, k=1)[0]
-best_sell = tools.selBest(pop_sell, k=1)[0]
+    return pop_buy, pop_sell, x_gen, y_avgProfit
 
-final = evaluate(best_buy, best_sell, test_data)
-print("Final fitness: ", final)
-
-# results
-plt.plot(x_gen, y_avgProfit)
-
-# set the x and y axis labels
-plt.xlabel('Generations')
-plt.ylabel('average profit')
-# set the title of the plot
-plt.title('The average profit per generation')
-plt.show()
-print(x_gen)
-print(y_avgProfit)
-
-print("Test set: ", evaluate(best_buy, best_sell, test_data))
