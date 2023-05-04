@@ -23,6 +23,7 @@ plt.show()
 
 # get the profit using the evolved bot
 final = evaluate(best_buy, best_sell, test_data)
+print()
 print("Buy Function: ", best_buy)
 print()
 print("Sell Function: ", best_sell)
