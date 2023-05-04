@@ -6,6 +6,11 @@ Creating and optimising a trading bot for Bitcoin by evolving the buy and sell f
 pip3 install -r requirements.txt
 python3 bot.py
 ```
+*Note: Takes around 2 to 3 minutes for running a population of 300 individuals for 50 generations.
+You can change the population and generation size in bot.py file. 
+
+
+***Note that there is a 70% chance for a profit using the preset parameters. The current parameters allow for the program to be executed quickly. However, larger populations and generatiions give better performance. 
 # Explanation
 1. Get OHLCV data from Kraken Exchange using CCXT package
 2. Create a fitness function - the evalaution function
