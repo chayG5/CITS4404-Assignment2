@@ -3,8 +3,8 @@ Creating and optimising a trading bot for Bitcoin by evolving the buy and sell f
 
 # How to Run the Code
 ```
-$ pip3 install -r requirements.txt
-$ python3 bot.py
+pip3 install -r requirements.txt
+python3 bot.py
 ```
 # Explanation
 1. Get OHLCV data from Kraken Exchange using CCXT package
