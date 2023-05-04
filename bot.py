@@ -1,8 +1,9 @@
-from testing import genetic_program, test_data, evaluate
+from genetic_program import genetic_program, test_data, evaluate
 from deap import tools
-from get_data import *
+from helper import *
 import matplotlib.pyplot as plt
 
+# run the genetic program: parameter: population size, number of generations
 pop_buy, pop_sell, x_gen, y_avgProfit = genetic_program(500, 30)
 # get the best buy and sell functions
 best_buy = tools.selBest(pop_buy, k=1)[0]
