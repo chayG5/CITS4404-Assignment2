@@ -22,10 +22,12 @@ def genetic_program(pop, gen):
     # for plotting
     x_gen = []
     y_avgProfit = []
+    y_nodeCount = []
 
     # store the profits for plotting
     x_gen.append(0)
     y_avgProfit.append(np.mean((np.array(fitnesses) - 100)))
+    y_nodeCount.append(np.mean(np.array([len(ind) for ind in pop_buy])))
 
     # run the genetic algorithm
     for g in range(NGEN):
@@ -92,6 +94,7 @@ def genetic_program(pop, gen):
         print()
         print("Average Profit in this Generation: ", avg)
         print()
+        y_nodeCount.append(np.mean(np.array([len(ind) for ind in pop_sell])))
 
-    return pop_buy, pop_sell, x_gen, y_avgProfit
+    return pop_buy, pop_sell, x_gen, y_avgProfit, y_nodeCount
 

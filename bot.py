@@ -3,12 +3,20 @@ from deap import tools
 from helper import *
 import matplotlib.pyplot as plt
 
+
 # run the genetic program: parameter: population size, number of generations
-pop_buy, pop_sell, x_gen, y_avgProfit = genetic_program(300, 50)
+pop_buy, pop_sell, x_gen, y_avgProfit, y_nodeCount = genetic_program(300, 50)
 
 # get the best buy and sell functions
 best_buy = tools.selBest(pop_buy, k=1)[0]
 best_sell = tools.selBest(pop_sell, k=1)[0]
+
+# plt.hist(node_counts, bins=range(max(node_counts)+2))
+plt.plot(x_gen, y_nodeCount)
+plt.xlabel("Generation")
+plt.ylabel("Average Node Count")
+plt.title("Average Node Count Per Generation")
+plt.show()
 
 # average profit per generation plot
 plt.plot(x_gen, y_avgProfit)
