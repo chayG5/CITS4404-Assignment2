@@ -10,7 +10,7 @@ python3 bot.py
 You can change the population and generation size in bot.py file. 
 
 
-***Note that there is a 70% chance for a profit using the preset parameters. The current parameters allow for the program to be executed quickly. However, larger populations and generatiions give better performance. 
+***Note that there is a 70% chance for a profit using the preset parameters. The current parameters allow for the program to be executed quickly. However, larger populations and generations will give better performance. 
 # Explanation
 1. Get OHLCV data from Kraken Exchange using CCXT package
 2. Create a fitness function - the evalaution function
